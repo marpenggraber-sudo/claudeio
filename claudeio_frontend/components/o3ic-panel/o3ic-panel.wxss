@@ -1,0 +1,69 @@
+/* components/o3ic-panel/o3ic-panel.wxss */
+
+.o3ic-scroll {
+  height: 100%;
+}
+
+.o3ic-scroll.fullscreen {
+  background-color: var(--bg-primary);
+}
+
+.o3ic-container {
+  padding: 60rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.o3ic-line {
+  width: 100%;
+  text-align: center;
+  padding: 10rpx 0;
+  border-radius: 8rpx;
+  transition: all 0.3s ease;
+}
+
+.o3ic-text {
+  font-size: 28rpx;
+  color: var(--text-muted);
+  line-height: 1.6;
+  transition: color 0.3s, font-size 0.3s;
+}
+
+/* 当前行（高亮）*/
+.o3ic-line.active .o3ic-text {
+  color: var(--color-cyan);
+  font-size: 36rpx;
+  font-weight: bold;
+  letter-spacing: 2rpx;
+}
+
+/* 已唱过的行（变淡）*/
+.o3ic-line.past .o3ic-text {
+  color: var(--text-secondary);
+  font-size: 26rpx;
+}
+
+/* 未唱的保持默认 */
+
+/* 无歌词 */
+.o3ic-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 80rpx 0;
+  width: 100%;
+}
+
+.empty-icon {
+  font-size: 64rpx;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-muted);
+}

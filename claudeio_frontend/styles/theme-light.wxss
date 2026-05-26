@@ -1,0 +1,52 @@
+/* theme-light.wxss — Melodio 浅色主题变量 */
+page {
+  /* 背景色 */
+  --bg-primary: #F9FAFB;
+  --bg-secondary: #F3F4F6;
+  --bg-tertiary: #E5E7EB;
+  --bg-card: #FFFFFF;
+
+  /* 功能色（霓虹系统）*/
+  --color-cyan: #0891B2;
+  --color-cyan-light: #06B6D4;
+  --color-green: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-purple: #6C5CE7;
+
+  /* 文字色 */
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+
+  /* 边框 */
+  --border-color: #D1D5DB;
+  --border-active: #0891B2;
+
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* 复古电子管风格（保留深色管，浅色模式下仍用经典红管）*/
+  --retro-bg: #111111;
+  --retro-segment-on: #ff3333;
+  --retro-segment-off: #2a0000;
+  --retro-glow: #ff4444;
+  --retro-dot: #ff0000;
+
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', 'Consolas', 'SF Mono', 'Noto Sans SC', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}

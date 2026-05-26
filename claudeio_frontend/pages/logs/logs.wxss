@@ -1,0 +1,12 @@
+/* pages/logs/logs.wxss */
+.container {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-primary);
+}
+.log-text {
+  font-size: 28rpx;
+  color: var(--text-muted);
+}

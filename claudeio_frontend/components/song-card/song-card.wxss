@@ -1,0 +1,119 @@
+/* components/song-card/song-card.wxss */
+
+.song-card {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 24rpx;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.15s;
+}
+
+.song-card:active {
+  background-color: var(--bg-tertiary);
+}
+
+.song-card.playing {
+  background-color: rgba(6, 182, 212, 0.05);
+}
+
+/* 左侧 */
+.song-index {
+  position: relative;
+  width: 88rpx;
+  height: 88rpx;
+  flex-shrink: 0;
+  margin-right: 20rpx;
+}
+
+.album-pic {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 8rpx;
+  background-color: var(--bg-tertiary);
+}
+
+.index-num {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.playing-indicator {
+  position: absolute;
+  bottom: 4rpx;
+  right: 4rpx;
+  width: 28rpx;
+  height: 20rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rpx;
+}
+
+.playing-indicator .bar {
+  width: 4rpx;
+  background-color: var(--color-cyan);
+  border-radius: 2rpx;
+  animation: soundBars 0.8s ease-in-out infinite alternate;
+}
+
+.playing-indicator .bar:nth-child(1) { height: 8rpx; animation-delay: 0s; }
+.playing-indicator .bar:nth-child(2) { height: 16rpx; animation-delay: 0.2s; }
+.playing-indicator .bar:nth-child(3) { height: 10rpx; animation-delay: 0.4s; }
+
+@keyframes soundBars {
+  from { transform: scaleY(0.4); }
+  to { transform: scaleY(1); }
+}
+
+/* 中间 */
+.song-info {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6rpx;
+}
+
+.song-name {
+  font-size: 30rpx;
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.song-name.active {
+  color: var(--color-cyan);
+}
+
+.artist-name {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+/* 右侧 */
+.song-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.duration {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.play-btn {
+  font-size: 28rpx;
+  color: var(--color-cyan);
+  padding: 8rpx;
+}

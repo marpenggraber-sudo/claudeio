@@ -1,0 +1,16 @@
+<!-- components/dot-visualizer/wxml -->
+<canvas
+  type="2d"
+  canvas-id="dotCanvas"
+  class="dot-canvas"
+  disable-scroll="{{true}}"
+  bindtouchstart="noop"
+></canvas>
+
+<view class="time-overlay">
+  <view
+    class="time-main"
+    style="color: {{timeColor}}; text-shadow: 0 0 20rpx {{timeGlowColor}}, 0 0 40rpx {{timeGlowColor}}, 0 0 60rpx {{timeGlowColor}};"
+  >{{displayTime}}</view>
+  <view class="time-meta" style="color: {{timeColorMeta}};">{{displayDay}} · {{displayDate}}</view>
+</view>

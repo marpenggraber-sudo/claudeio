@@ -1,0 +1,40 @@
+/* components/dot-visualizer/wxss */
+
+.dot-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* 正方形：宽等于父容器宽 */
+  height: 750rpx;
+  background: #0d0d0d;
+}
+
+.time-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.time-main {
+  font-size: 72rpx;
+  font-weight: 700;
+  letter-spacing: 8rpx;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  color: #F9FAFB;
+  text-shadow: 0 0 20rpx rgba(255, 255, 255, 0.6), 0 0 40rpx rgba(255, 255, 255, 0.3), 0 0 60rpx rgba(255, 255, 255, 0.1);
+}
+
+.time-meta {
+  font-size: 28rpx;
+  letter-spacing: 6rpx;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  color: rgba(249, 250, 251, 0.55);
+}

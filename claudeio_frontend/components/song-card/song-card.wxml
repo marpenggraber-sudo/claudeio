@@ -1,0 +1,26 @@
+<!-- components/song-card/song-card.wxml -->
+
+<view class="song-card {{isCurrentPlaying ? 'playing' : ''}}" bindtap="onPlayTap">
+  <!-- 左侧：序号或封面 -->
+  <view class="song-index">
+    <image wx:if="{{song.album.picUrl}}" class="album-pic" src="{{song.album.picUrl}}" mode="aspectFill" />
+    <text wx:else class="index-num">{{index !== null ? index : ''}}</text>
+    <view wx:if="{{isCurrentPlaying}}" class="playing-indicator">
+      <view class="bar"></view>
+      <view class="bar"></view>
+      <view class="bar"></view>
+    </view>
+  </view>
+
+  <!-- 中间：歌曲信息 -->
+  <view class="song-info">
+    <text class="song-name text-ellipsis {{isCurrentPlaying ? 'active' : ''}}">{{song.name}}</text>
+    <text class="artist-name text-ellipsis">{{artistName}}</text>
+  </view>
+
+  <!-- 右侧：时长 + 操作 -->
+  <view class="song-actions">
+    <text class="duration">{{durationStr}}</text>
+    <text class="play-btn">{{isCurrentPlaying ? '⏸' : '▶'}}</text>
+  </view>
+</view>

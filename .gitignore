@@ -1,0 +1,21 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# Backend (Maven/Java)
+target/
+*.class
+
+# Frontend (WeChat Mini Program)
+node_modules/

@@ -1,0 +1,258 @@
+/* 页面容器 - 米白色背景 */
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  background: #f5f5dc;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 卡片容器 - 毛玻璃效果 */
+.card {
+  width: 100%;
+  max-width: 600rpx;
+  background: rgba(26, 31, 46, 0.7);
+  backdrop-filter: blur(20rpx) saturate(180%);
+  -webkit-backdrop-filter: blur(20rpx) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24rpx;
+  padding: 60rpx 50rpx;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3),
+              0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  display: flex;
+  flex-direction: column;
+  gap: 40rpx;
+  position: relative;
+  z-index: 1;
+  animation: slideUp 0.6s ease-out;
+  overflow: hidden;
+}
+
+/* 点状背景图案 - 与首页一致 */
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+  background-size: 12px 12px;
+  background-position: 0 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 动态旋转光晕效果 - 纯色光晕 */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: -150rpx;
+  background: rgba(0, 188, 212, 0.3);
+  filter: blur(80rpx);
+  opacity: 0.6;
+  z-index: -1;
+  animation: rotateGlow 12s linear infinite;
+  pointer-events: none;
+}
+
+
+@keyframes rotateGlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(60rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logo 区域 */
+.logo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.logo-icon {
+  font-size: 80rpx;
+  animation: bounce 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 10rpx rgba(0, 188, 212, 0.5));
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10rpx);
+  }
+}
+
+/* 标题样式 - 增强视觉效果 */
+.title {
+  font-size: 56rpx;
+  font-weight: bold;
+  text-align: center;
+  letter-spacing: 6rpx;
+  color: #fff;
+  text-shadow: 0 0 20rpx rgba(0, 188, 212, 0.8),
+               0 0 40rpx rgba(0, 188, 212, 0.5),
+               0 2rpx 4rpx rgba(0, 0, 0, 0.5);
+  filter: drop-shadow(0 0 10rpx rgba(255, 255, 255, 0.3));
+}
+
+.subtitle {
+  font-size: 24rpx;
+  color: #888;
+  text-align: center;
+  letter-spacing: 2rpx;
+}
+
+/* 表单区域 */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
+  position: relative;
+  z-index: 1;
+}
+
+/* 输入组 */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.input-label {
+  font-size: 24rpx;
+  color: #888;
+  font-weight: 500;
+  padding-left: 8rpx;
+  letter-spacing: 1rpx;
+}
+
+.input-hint {
+  font-size: 20rpx;
+  color: #555;
+  padding-left: 8rpx;
+  margin-top: 8rpx;
+}
+
+/* 输入框样式 - 深色主题 */
+.input-field {
+  width: 100%;
+  padding: 28rpx 32rpx;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.input-field:focus {
+  border-color: #00bcd4;
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 2rpx rgba(0, 188, 212, 0.2);
+}
+
+.input-field::placeholder {
+  color: #555;
+}
+
+/* Textarea 特殊样式 */
+.textarea-field {
+  min-height: 120rpx;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 按钮区域 */
+.button-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 12rpx;
+  position: relative;
+  z-index: 1;
+}
+
+/* 通用按钮样式 */
+button {
+  width: 100%;
+  padding: 28rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  border: none;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 2rpx;
+}
+
+/* 主操作按钮 - 使用首页的青色主题 */
+.primary-button {
+  background: #00bcd4;
+  color: #000;
+  font-weight: bold;
+  box-shadow: 0 0 20rpx rgba(0, 188, 212, 0.4);
+}
+
+.primary-button:active {
+  transform: scale(0.98);
+  box-shadow: 0 0 10rpx rgba(0, 188, 212, 0.3);
+}
+
+/* 次要按钮 */
+.secondary-button {
+  background: transparent;
+  color: #888;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none;
+  font-size: 24rpx;
+}
+
+.secondary-button:active {
+  background: rgba(255, 255, 255, 0.05);
+  color: #00bcd4;
+}
+
+/* 加载状态 */
+button[loading] {
+  opacity: 0.7;
+}
+
+/* 按钮波纹效果 */
+button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+button:active::after {
+  width: 600rpx;
+  height: 600rpx;
+}

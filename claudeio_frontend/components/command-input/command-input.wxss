@@ -1,0 +1,135 @@
+/* components/command-input/command-input.wxss */
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* 命令面板 */
+.command-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 12rpx 12rpx 0 0;
+  max-height: 500rpx;
+  overflow-y: auto;
+  margin-bottom: 0;
+}
+
+.command-panel-header {
+  padding: 20rpx 24rpx 12rpx;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel-title {
+  display: block;
+  font-size: 26rpx;
+  color: var(--color-cyan);
+  font-weight: 600;
+  margin-bottom: 4rpx;
+}
+
+.panel-hint {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}
+
+.command-item {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 24rpx;
+  border-bottom: 1px solid var(--border-color);
+  gap: 16rpx;
+}
+
+.command-item:last-child {
+  border-bottom: none;
+}
+
+.command-item:active {
+  background-color: var(--bg-tertiary);
+}
+
+.cmd-text {
+  font-size: 26rpx;
+  color: var(--color-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cmd-desc {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+/* 输入行 */
+.input-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  gap: 16rpx;
+}
+
+.prefix-symbol {
+  font-size: 32rpx;
+  color: var(--color-cyan);
+  font-weight: bold;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.cmd-input {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 28rpx;
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-family: 'JetBrains Mono', 'Noto Sans SC', monospace;
+}
+
+.input-placeholder {
+  color: var(--text-muted);
+  font-size: 28rpx;
+}
+
+.send-btn {
+  width: 72rpx;
+  height: 72rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-tertiary);
+  border-radius: 12rpx;
+  transition: background-color 0.15s;
+}
+
+.send-btn.active {
+  background-color: var(--color-cyan);
+}
+
+.send-btn.active:active {
+  opacity: 0.8;
+}
+
+.send-icon {
+  font-size: 32rpx;
+  color: var(--text-muted);
+  line-height: 1;
+  font-weight: bold;
+}
+
+.send-btn.active .send-icon {
+  color: var(--bg-primary);
+}

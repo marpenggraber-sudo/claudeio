@@ -1,0 +1,8 @@
+package org.example.dto;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record ChatRequest(
+        @NotBlank String message,
+        Long userId
+) {}

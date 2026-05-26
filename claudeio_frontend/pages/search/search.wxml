@@ -1,0 +1,9 @@
+<view class="page">
+  <view class="search-box">
+    <input placeholder="输入歌曲、歌手、情绪" bindinput="onInput" />
+    <button bindtap="search" loading="{{loading}}">搜索</button>
+  </view>
+  <view wx:for="{{songs}}" wx:key="id" class="song-item">
+    <text>{{item.name}} - {{item.artist}}</text>
+  </view>
+</view>

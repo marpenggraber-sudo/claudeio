@@ -1,0 +1,29 @@
+<!-- components/o3ic-panel/o3ic-panel.wxml -->
+
+<scroll-view
+  class="o3ic-scroll {{fullscreen ? 'fullscreen' : ''}}"
+  scroll-y
+  scroll-into-view="o3ic-{{currentLineIndex}}"
+  scroll-with-animation="{{true}}"
+  enhanced="{{true}}"
+  show-scrollbar="{{false}}"
+>
+  <view class="o3ic-container">
+    <view
+      wx:for="{{o3icLines}}"
+      wx:key="index"
+      id="o3ic-{{index}}"
+      class="o3ic-line {{index === currentLineIndex ? 'active' : ''}} {{index < currentLineIndex ? 'past' : ''}}"
+      data-time="{{item.time}}"
+      bindtap="onTapLine"
+    >
+      <text class="o3ic-text">{{item.text}}</text>
+    </view>
+
+    <!-- 无歌词时 -->
+    <view wx:if="{{o3icLines.length === 0}}" class="o3ic-empty">
+      <text class="empty-icon">🎵</text>
+      <text class="empty-text">暂无歌词</text>
+    </view>
+  </view>
+</scroll-view>

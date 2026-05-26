@@ -1,0 +1,38 @@
+CREATE TABLE IF NOT EXISTS user_account (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    music_user_id BIGINT NOT NULL UNIQUE,
+    nickname VARCHAR(128) NULL,
+    avatar_url VARCHAR(512) NULL,
+    account VARCHAR(64) NULL UNIQUE,
+    password VARCHAR(128) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_cookie (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    cookie_ciphertext TEXT NOT NULL,
+    expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_cookie_user FOREIGN KEY (user_id) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS recommend_cache_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    query_text VARCHAR(255) NOT NULL,
+    songs_json JSON NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_recommend_cache_user FOREIGN KEY (user_id) REFERENCES user_account(id)
+);
+
+CREATE TABLE IF NOT EXISTS agent_conversation (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    role VARCHAR(32) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_agent_conversation_user FOREIGN KEY (user_id) REFERENCES user_account(id)
+);

@@ -1,0 +1,10 @@
+<view class="page">
+  <view class="chat-input">
+    <input placeholder="对音乐 Agent 说点什么" bindinput="onInput" value="{{message}}" />
+    <button bindtap="sendMessage" loading="{{loading}}">发送</button>
+  </view>
+  <view class="reply">{{reply}}</view>
+  <view wx:for="{{songs}}" wx:key="id" class="song-item">
+    <text>{{item.name}} - {{item.artist}}</text>
+  </view>
+</view>

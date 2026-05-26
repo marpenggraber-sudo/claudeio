@@ -1,0 +1,45 @@
+<!-- components/command-input/command-input.wxml -->
+
+<view class="input-wrapper">
+  <!-- 命令面板（/ 触发） -->
+  <view wx:if="{{showCommandPanel}}" class="command-panel">
+    <view class="command-panel-header">
+      <text class="panel-title">快捷命令</text>
+      <text class="panel-hint">选择一个命令或继续输入</text>
+    </view>
+    <view
+      wx:for="{{commandList}}"
+      wx:key="cmd"
+      class="command-item"
+      data-value="{{item.cmd}}"
+      bindtap="onCommandSelect"
+    >
+      <text class="cmd-text">{{item.cmd}}</text>
+      <text class="cmd-desc">{{item.desc}}</text>
+    </view>
+  </view>
+
+  <!-- 输入行 -->
+  <view class="input-row">
+    <!-- 前缀符号 -->
+    <text class="prefix-symbol">></text>
+
+    <!-- 输入框 -->
+    <input
+      class="cmd-input"
+      type="text"
+      placeholder="告诉我想听什么..."
+      placeholder-class="input-placeholder"
+      value="{{inputValue}}"
+      bindinput="onInput"
+      bindconfirm="onConfirm"
+      confirm-type="send"
+      cursor-spacing="16"
+    />
+
+    <!-- 发送按钮 -->
+    <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="onSendTap">
+      <text class="send-icon">↑</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,3 @@
+<view class="page">
+  <button bindtap="onBindAccount">去登录 / 绑定账号</button>
+</view>

@@ -1,0 +1,53 @@
+<view class="page">
+  <view class="card">
+    <!-- Logo 区域 -->
+    <view class="logo-section">
+      <text class="logo-icon">🎵</text>
+      <text class="title">音乐 Agent</text>
+      <text class="subtitle">{{mode === 'register' ? '创建新账号' : '欢迎回来'}}</text>
+    </view>
+
+    <!-- 表单区域 -->
+    <view class="form-section">
+      <view class="input-group">
+        <text class="input-label">账号</text>
+        <input
+          class="input-field"
+          bindinput="onAccountInput"
+          value="{{account}}"
+        />
+      </view>
+
+      <view class="input-group">
+        <text class="input-label">密码</text>
+        <input
+          class="input-field"
+          password="true"
+          bindinput="onPasswordInput"
+          value="{{password}}"
+        />
+      </view>
+
+      <view class="input-group">
+        <text class="input-label">网易云音乐 Cookie</text>
+        <textarea
+          class="input-field textarea-field"
+          bindinput="onCookieInput"
+          value="{{cookie}}"
+          maxlength="-1"
+          auto-height
+        />
+      </view>
+    </view>
+
+    <!-- 按钮区域 -->
+    <view class="button-section">
+      <button class="primary-button" bindtap="submit" loading="{{loading}}">
+        {{mode === 'register' ? '立即注册' : '立即登录'}}
+      </button>
+      <button class="secondary-button" bindtap="switchMode" type="default">
+        {{mode === 'register' ? '已有账号？去登录' : '没有账号？去注册'}}
+      </button>
+    </view>
+  </view>
+</view>

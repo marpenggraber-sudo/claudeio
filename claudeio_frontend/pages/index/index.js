@@ -1,0 +1,685 @@
+Page({
+  data: {
+    timeDigits: ['0', '0', '0', '0'],
+    dayOfWeek: '',
+    fullDate: '',
+    timer: null,
+    isPlaying: false,
+    isLoggedIn: false,
+    theme: 'dark',
+    showPlayerView: false,
+    waveformBars: [20, 30, 45, 60, 80, 50, 40, 65, 90, 75, 45, 30, 20, 50, 70, 85, 60, 40, 25, 45, 75, 95, 80, 55, 35, 60, 85, 70, 40, 25, 50, 75, 90, 65, 45, 30, 20, 40, 60, 45],
+    currentTrackIndex: 0,
+    showQueue: false,
+    queueHeight: 0,
+    currentTrack: '',
+    queue: [],
+    lyricLines: [],
+    currentLyricIndex: -1,
+    currentTime: 0,
+    duration: 0,
+    currentTimeStr: '0:00',
+    durationStr: '0:00',
+    seeking: false,
+    volume: 80,
+    chatInput: '',
+    messages: [],
+    playStartTime: null,
+    currentSong: null,
+    currentGenre: 'default',  // 当前风格
+    genreCache: {},           // 本地缓存 {songId: genre}
+    genreTransitioning: false // 切换动画状态
+  },
+
+  canvas: null,
+  ctx: null,
+  systemInfo: null,
+  pixelSize: 4,
+  gap: 2,
+  digitWidth: 5,
+  digitHeight: 7,
+  animationId: null,
+
+  onLoad: function () {
+    this.systemInfo = wx.getSystemInfoSync();
+    this.updateTime();
+    const timer = setInterval(() => { this.updateTime(); }, 1000);
+    this.setData({ timer });
+
+    const userId = wx.getStorageSync('music_userId');
+    if (userId) {
+      this.setData({ isLoggedIn: true });
+      // 加载 AI 问候
+      this.loadGreeting(userId);
+    }
+
+    // 从 localStorage 加载风格缓存
+    const cachedGenres = wx.getStorageSync('genre_cache') || {};
+    this.setData({ genreCache: cachedGenres });
+
+    this.audio = wx.createInnerAudioContext();
+    this.audio.volume = (this.data.volume || 80) / 100;
+    this.audio.onPlay(() => {
+      this.setData({ isPlaying: true });
+      this.recordPlayStart();
+    });
+    this.audio.onPause(() => {
+      this.setData({ isPlaying: false });
+      this.recordPlayCompletion(false);
+    });
+    this.audio.onStop(() => {
+      this.setData({ isPlaying: false });
+      this.recordPlayCompletion(false);
+    });
+    this.audio.onEnded(() => {
+      this.recordPlayCompletion(true);
+      this.playNext();
+    });
+    this.audio.onError((err) => {
+      console.error('audio error', err);
+      wx.showToast({ title: '播放失败', icon: 'none' });
+      this.setData({ isPlaying: false });
+      this.recordPlayCompletion(false);
+    });
+    this.audio.onTimeUpdate(() => { this.syncLyric(); if (this.data.seeking) return; const ct = this.audio.currentTime || 0; const du = this.audio.duration || 0; this.setData({ currentTime: ct, duration: du, currentTimeStr: this.formatTime(ct), durationStr: this.formatTime(du) }); });
+    this.audio.onCanplay(() => { const du = this.audio.duration || 0; if (du) this.setData({ duration: du, durationStr: this.formatTime(du) }); });
+  },
+
+  loadGreeting: function(userId) {
+    wx.request({
+      url: `${getApp().globalData.apiBase}/greeting`,
+      data: { userId: Number(userId) },
+      success: (res) => {
+        const reply = res.data?.reply || '';
+        const songs = res.data?.songs || [];
+
+        // 添加 AI 问候消息
+        const greetingMsg = {
+          id: Date.now(),
+          role: 'assistant',
+          author: 'CLAUDIO',
+          content: reply
+        };
+
+        const messages = [greetingMsg];
+
+        // 不再把歌曲作为单独的消息添加，只设置播放队列
+        if (songs.length) {
+          // 设置播放队列
+          const queue = songs.map(s => ({
+            id: s.id,
+            title: s.name,
+            artist: s.artist || 'Unknown'
+          }));
+
+          // 批量预加载风格
+          this.batchLoadGenres(queue);
+
+          this.setData({
+            messages,
+            queue,
+            currentTrackIndex: 0,
+            currentTrack: queue[0].title + ' - ' + queue[0].artist,
+            showPlayerView: false
+          });
+        } else {
+          this.setData({ messages });
+        }
+
+        this.scrollChatToBottom();
+      },
+      fail: () => {
+        console.log('加载问候失败');
+      }
+    });
+  },
+
+  onChatInput: function (e) {
+    this.setData({ chatInput: e.detail.value });
+  },
+
+  sendChat: function () {
+    const message = (this.data.chatInput || '').trim();
+    if (!message) return;
+    const userId = wx.getStorageSync('music_userId');
+    if (!userId) {
+      wx.navigateTo({ url: '/pages/login/login' });
+      return;
+    }
+    const userMsg = { id: Date.now(), role: 'user', author: 'YOU', content: message };
+    this.setData({ messages: [...this.data.messages, userMsg], chatInput: '' });
+    wx.request({
+      url: `${getApp().globalData.apiBase}/chat`,
+      method: 'POST',
+      header: { 'Content-Type': 'application/json' },
+      data: { message, userId: Number(userId) },
+      success: (res) => {
+        const reply = res.data?.reply || '';
+        const songs = res.data?.songs || [];
+        const songId = res.data?.songId;
+        const action = res.data?.action;
+        const newUserId = res.data?.newUserId;
+        const newNickname = res.data?.newNickname;
+
+        // ========== 播放控制指令处理 ==========
+
+        // 暂停播放
+        if (action === 'pause_music') {
+          if (this.audio) {
+            this.audio.pause();
+          }
+          const assistantMsg = {
+            id: Date.now() + 1,
+            role: 'assistant',
+            author: 'CLAUDIO',
+            content: reply
+          };
+          this.setData({
+            messages: [...this.data.messages, assistantMsg]
+          }, () => {
+            this.scrollChatToBottom();
+          });
+          return;
+        }
+
+        // 继续播放
+        if (action === 'resume_music') {
+          if (this.audio && this.audio.src) {
+            this.audio.play();
+          } else {
+            const assistantMsg = {
+              id: Date.now() + 1,
+              role: 'assistant',
+              author: 'CLAUDIO',
+              content: '当前没有正在播放的歌曲，请先搜索或选择歌曲。'
+            };
+            this.setData({
+              messages: [...this.data.messages, assistantMsg]
+            }, () => {
+              this.scrollChatToBottom();
+            });
+            return;
+          }
+          const assistantMsg = {
+            id: Date.now() + 1,
+            role: 'assistant',
+            author: 'CLAUDIO',
+            content: reply
+          };
+          this.setData({
+            messages: [...this.data.messages, assistantMsg]
+          }, () => {
+            this.scrollChatToBottom();
+          });
+          return;
+        }
+
+        // 下一首
+        if (action === 'play_next') {
+          this.playNext();
+          const assistantMsg = {
+            id: Date.now() + 1,
+            role: 'assistant',
+            author: 'CLAUDIO',
+            content: reply
+          };
+          this.setData({
+            messages: [...this.data.messages, assistantMsg]
+          }, () => {
+            this.scrollChatToBottom();
+          });
+          return;
+        }
+
+        // 上一首
+        if (action === 'play_previous') {
+          this.playPrev();
+          const assistantMsg = {
+            id: Date.now() + 1,
+            role: 'assistant',
+            author: 'CLAUDIO',
+            content: reply
+          };
+          this.setData({
+            messages: [...this.data.messages, assistantMsg]
+          }, () => {
+            this.scrollChatToBottom();
+          });
+          return;
+        }
+
+        // 调整音量
+        if (action && action.startsWith('set_volume:')) {
+          const volume = parseInt(action.substring(11));
+          if (!isNaN(volume) && volume >= 0 && volume <= 100) {
+            if (this.audio) {
+              this.audio.volume = volume / 100;
+            }
+            this.setData({ volume });
+          }
+          const assistantMsg = {
+            id: Date.now() + 1,
+            role: 'assistant',
+            author: 'CLAUDIO',
+            content: reply
+          };
+          this.setData({
+            messages: [...this.data.messages, assistantMsg]
+          }, () => {
+            this.scrollChatToBottom();
+          });
+          return;
+        }
+
+        // 处理退出登录
+        if (action === 'logout') {
+          const assistantMsg = { id: Date.now() + 1, role: 'assistant', author: 'CLAUDIO', content: reply };
+          this.setData({ messages: [...this.data.messages, assistantMsg] }, () => {
+            this.scrollChatToBottom();
+          });
+
+          // 清理播放器状态
+          if (this.audio) {
+            this.audio.stop();
+            this.audio.src = '';
+            this.audio.destroy();
+            this.audio = null;
+          }
+
+          // 重置所有播放相关状态
+          this.setData({
+            queue: [],
+            currentTrack: '',
+            currentTrackIndex: 0,
+            currentSong: null,
+            isPlaying: false,
+            lyricLines: [],
+            currentLyricIndex: -1,
+            currentTime: 0,
+            duration: 0,
+            currentTimeStr: '0:00',
+            durationStr: '0:00',
+            showPlayerView: false,
+            showQueue: false
+          });
+
+          wx.removeStorageSync('music_userId');
+          wx.showToast({ title: '已退出登录', icon: 'success' });
+          setTimeout(() => {
+            wx.redirectTo({ url: '/pages/login/login' });
+          }, 1500);
+          return;
+        }
+
+        // 处理切换账号
+        if (action === 'switch_account' && newUserId) {
+          const assistantMsg = { id: Date.now() + 1, role: 'assistant', author: 'CLAUDIO', content: reply };
+          this.setData({ messages: [...this.data.messages, assistantMsg] }, () => {
+            this.scrollChatToBottom();
+          });
+          wx.setStorageSync('music_userId', newUserId);
+          wx.showToast({ title: '切换成功', icon: 'success' });
+          setTimeout(() => {
+            // 清空对话和播放队列
+            this.setData({
+              messages: [],
+              queue: [],
+              currentTrack: '',
+              showPlayerView: false
+            });
+            // 重新加载欢迎消息
+            this.loadGreeting(newUserId);
+          }, 1500);
+          return;
+        }
+
+        const assistantMsg = { id: Date.now() + 1, role: 'assistant', author: 'CLAUDIO', content: reply };
+        const nextMessages = [...this.data.messages, assistantMsg];
+
+        // 不再把歌曲作为单独的消息添加，只设置播放队列
+        if (songs.length) {
+          const queue = songs.map(s => ({ id: s.id, title: s.name, artist: s.artist || 'Unknown' }));
+
+          // 批量预加载风格
+          this.batchLoadGenres(queue);
+
+          this.setData({
+            queue,
+            currentTrackIndex: 0,
+            currentTrack: queue[0].title + ' - ' + queue[0].artist,
+            showPlayerView: true,
+            messages: nextMessages
+          }, () => {
+            this.scrollChatToBottom();
+            this.loadAndPlayTrack(queue[0], 0);
+          });
+        } else {
+          this.setData({ messages: nextMessages }, () => {
+            this.scrollChatToBottom();
+          });
+          if (songId) {
+            this.loadAndPlayById(songId);
+          }
+        }
+      },
+      fail: () => wx.showToast({ title: '对话失败', icon: 'none' })
+    });
+  },
+
+  scrollChatToBottom: function () {
+    const messages = this.data.messages;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    setTimeout(() => {
+      this.setData({ chatScrollIntoView: 'msg-' + lastMsg.id });
+    }, 50);
+  },
+
+  beat: 0,
+  lastLyricIdx: -1,
+
+  syncLyric: function () {
+    if (!this.audio) return;
+    const t = this.audio.currentTime * 1000;
+    const lines = this.data.lyricLines;
+    if (!lines || !lines.length) return;
+    let idx = -1;
+    for (let i = 0; i < lines.length; i++) { if (lines[i].time <= t) idx = i; else break; }
+    if (idx !== this.data.currentLyricIndex) { this.setData({ currentLyricIndex: idx }); this.beat = 1; }
+  },
+
+  loadLyric: function (songId) {
+    const apiBase = getApp().globalData.apiBase;
+    wx.request({ url: `${apiBase}/lyric/new`, data: { id: songId }, success: (res) => {
+      const yrc = res.data && res.data.yrc && res.data.yrc.lyric;
+      const lrc = res.data && res.data.lrc && res.data.lrc.lyric;
+      const lines = this.parseLrc(lrc) || this.parseLyric(yrc) || [];
+      this.setData({ lyricLines: lines, currentLyricIndex: -1 });
+    }, fail: () => this.setData({ lyricLines: [], currentLyricIndex: -1 }) });
+  },
+
+  parseLyric: function (yrc) {
+    if (!yrc) return null;
+    const lines = [];
+    const rawLines = yrc.split('\n');
+    const headRe = /^\[(\d+),(\d+)\](.*)$/;
+    const wordRe = /\((\d+),(\d+),\d+\)([^\(]*)/g;
+    rawLines.forEach(raw => {
+      if (raw.startsWith('{')) return;
+      const m = raw.match(headRe);
+      if (!m) return;
+      const time = parseInt(m[1], 10);
+      const rest = m[3];
+      let text = '';
+      let wm;
+      while ((wm = wordRe.exec(rest)) !== null) text += wm[3];
+      if (!text) text = rest;
+      if (text.trim()) lines.push({ time, text });
+    });
+    return lines.length ? lines : null;
+  },
+
+  parseLrc: function (lrc) {
+    if (!lrc) return null;
+    const lines = [];
+    const re = /\[(\d+):(\d+)(?:\.(\d+))?\]/g;
+    lrc.split('\n').forEach(line => {
+      let m;
+      const matches = [];
+      while ((m = re.exec(line)) !== null) matches.push(m);
+      if (!matches.length) return;
+      const text = line.replace(/\[[^\]]+\]/g, '').trim();
+      if (!text) return;
+      matches.forEach(mm => {
+        const min = parseInt(mm[1], 10);
+        const sec = parseInt(mm[2], 10);
+        const ms = mm[3] ? parseInt((mm[3] + '00').slice(0, 3), 10) : 0;
+        lines.push({ time: (min * 60 + sec) * 1000 + ms, text });
+      });
+    });
+    lines.sort((a, b) => a.time - b.time);
+    return lines.length ? lines : null;
+  },
+
+  loadAndPlayTrack: function (track, index) {
+    if (!track) return;
+    const apiBase = getApp().globalData.apiBase;
+    const userId = wx.getStorageSync('music_userId');
+    console.log('准备播放队列歌曲', track);
+
+    // 检查本地缓存的风格
+    const cachedGenre = this.data.genreCache[track.id];
+    if (cachedGenre) {
+      console.log('从缓存获取风格:', cachedGenre);
+      this.switchGenre(cachedGenre);
+    } else {
+      // 先切换到默认风格
+      this.switchGenre('default');
+      // 异步获取风格
+      this.fetchGenreAsync(track.id, track.title, track.artist);
+    }
+
+    wx.request({
+      url: `${apiBase}/play-url`,
+      data: { songId: track.id, userId },
+      success: (res) => {
+        const url = res.data && res.data.url;
+        if (!url) { wx.showToast({ title: '无版权或无法播放', icon: 'none' }); return; }
+
+        this.setData({
+          currentTrackIndex: index,
+          currentTrack: track.title + ' - ' + track.artist,
+          currentSong: {
+            id: track.id,
+            name: track.title,
+            artist: track.artist
+          }
+        });
+
+        this.audio.src = url;
+        this.audio.play();
+        this.loadLyric(track.id);
+      }
+    });
+  },
+
+  loadAndPlayById: function (songId) {
+    const track = this.data.queue.find(item => item.id === songId) || { id: songId, title: '未知歌曲', artist: '未知艺术家' };
+    const index = this.data.queue.findIndex(item => item.id === songId);
+    this.loadAndPlayTrack(track, index >= 0 ? index : this.data.currentTrackIndex);
+  },
+
+  recordPlayStart: function() {
+    this.setData({
+      playStartTime: Date.now()
+    });
+    console.log('播放开始记录', this.data.currentSong);
+  },
+
+  recordPlayCompletion: function(completed) {
+    if (!this.data.playStartTime || !this.data.currentSong) {
+      return;
+    }
+
+    const duration = Math.floor((Date.now() - this.data.playStartTime) / 1000);
+    const userId = wx.getStorageSync('music_userId');
+
+    if (duration < 5) {
+      console.log('播放时长不足5秒，不记录');
+      this.setData({ playStartTime: null });
+      return;
+    }
+
+    const apiBase = getApp().globalData.apiBase;
+    wx.request({
+      url: `${apiBase}/play-history`,
+      method: 'POST',
+      data: {
+        userId: Number(userId),
+        songId: this.data.currentSong.id,
+        songName: this.data.currentSong.name,
+        artist: this.data.currentSong.artist,
+        duration: duration,
+        completed: completed
+      },
+      success: (res) => {
+        console.log('播放记录已保存', res.data, this.data.currentSong);
+      },
+      fail: (err) => {
+        console.error('播放记录保存失败', err);
+      }
+    });
+
+    this.setData({ playStartTime: null });
+  },
+
+  playNext: function () { const { queue, currentTrackIndex } = this.data; if (!queue.length) return; const next = (currentTrackIndex + 1) % queue.length; const track = queue[next]; this.audio.stop(); this.audio.src = ''; this.setData({ currentTrackIndex: next, currentTrack: track.title + ' - ' + track.artist, lyricLines: [], currentLyricIndex: -1, currentTime: 0, duration: 0, currentTimeStr: '0:00', durationStr: '0:00' }, () => { this.loadAndPlayTrack(track, next); }); },
+  playPrev: function () { const { queue, currentTrackIndex } = this.data; if (!queue.length) return; const prev = (currentTrackIndex - 1 + queue.length) % queue.length; const track = queue[prev]; this.audio.stop(); this.audio.src = ''; this.setData({ currentTrackIndex: prev, currentTrack: track.title + ' - ' + track.artist, lyricLines: [], currentLyricIndex: -1, currentTime: 0, duration: 0, currentTimeStr: '0:00', durationStr: '0:00' }, () => { this.loadAndPlayTrack(track, prev); }); },
+  formatTime: function (sec) { sec = Math.max(0, Math.floor(sec || 0)); const m = Math.floor(sec / 60); const s = sec % 60; return m + ':' + (s < 10 ? '0' + s : s); },
+  onSeeking: function (e) { this.setData({ seeking: true, currentTime: e.detail.value, currentTimeStr: this.formatTime(e.detail.value) }); },
+  onSeek: function (e) { const v = e.detail.value; if (this.audio && this.audio.src) this.audio.seek(v); this.setData({ seeking: false, currentTime: v, currentTimeStr: this.formatTime(v) }); },
+  onVolumeChange: function (e) { const v = e.detail.value; if (this.audio) this.audio.volume = v / 100; this.setData({ volume: v }); },
+  seekToLyric: function (e) { const timeMs = e.currentTarget.dataset.time; const idx = e.currentTarget.dataset.index; if (!this.audio || !this.audio.src) return; const sec = timeMs / 1000; this.audio.seek(sec); if (this.audio.paused) this.audio.play(); this.setData({ currentLyricIndex: idx, currentTime: sec, currentTimeStr: this.formatTime(sec) }); },
+  onReady: function () { const query = wx.createSelectorQuery(); query.select('#clockCanvas').fields({ node: true, size: true }).exec((res) => { if (!res[0]) return; const canvas = res[0].node; const ctx = canvas.getContext('2d'); const dpr = this.systemInfo ? this.systemInfo.pixelRatio : 1; canvas.width = res[0].width * dpr; canvas.height = res[0].height * dpr; ctx.scale(dpr, dpr); this.canvas = canvas; this.ctx = ctx; this.startClockAnimation(); }); },
+  onUnload: function () { if (this.data.timer) clearInterval(this.data.timer); if (this.animationId) this.canvas.cancelAnimationFrame(this.animationId); if (this.audio) this.audio.destroy(); },
+  togglePlay: function () { const { queue, currentTrackIndex, isPlaying } = this.data; if (!queue.length) return; if (isPlaying) { this.audio.pause(); this.setData({ showPlayerView: false }); return; } if (!this.audio.src) { const track = queue[currentTrackIndex]; this.loadAndPlayTrack(track, currentTrackIndex); } else { this.audio.play(); } this.setData({ showPlayerView: true }); },
+  closePlayerView: function () { this.setData({ showPlayerView: false }); },
+  tapQueueItem: function (e) { const index = e.currentTarget.dataset.index; const { queue, currentTrackIndex } = this.data; if (index === currentTrackIndex) return; const above = queue.slice(0, index); const clicked = queue[index]; const below = queue.slice(index + 1); const newQueue = [clicked, ...below, ...above]; this.audio.stop(); this.audio.src = ''; this.setData({ queue: newQueue, currentTrackIndex: 0, currentTrack: clicked.title + ' - ' + clicked.artist, showPlayerView: true }, () => { this.loadAndPlayTrack(clicked, 0); }); },
+  deleteQueueItem: function (e) { const index = e.currentTarget.dataset.index; const { queue, currentTrackIndex } = this.data; const newQueue = queue.filter((_, i) => i !== index); const newIndex = index < currentTrackIndex ? currentTrackIndex - 1 : currentTrackIndex; this.setData({ queue: newQueue, currentTrackIndex: Math.min(newIndex, newQueue.length - 1) }); },
+  toggleQueue: function () { const next = !this.data.showQueue; this.setData({ showQueue: next, queueHeight: next ? 120 : 0 }); },
+  goToLogin: function () { wx.navigateTo({ url: '/pages/login/login' }); },
+  toggleTheme: function (e) { const targetTheme = e.currentTarget.dataset.theme; if (targetTheme && targetTheme !== this.data.theme) this.setData({ theme: targetTheme }); },
+  updateTime: function () { const now = new Date(); const hours = now.getHours().toString().padStart(2, '0'); const minutes = now.getMinutes().toString().padStart(2, '0'); const timeString = hours + minutes; const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; const dayOfWeek = days[now.getDay()]; const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']; const day = now.getDate().toString().padStart(2, '0'); const month = months[now.getMonth()]; const year = now.getFullYear(); const fullDate = `${day} ${month} ${year}`; if (this.data.timeDigits.join('') !== timeString || this.data.fullDate !== fullDate) this.setData({ timeDigits: timeString.split(''), dayOfWeek, fullDate }); },
+  startClockAnimation: function () { const render = () => { this.drawPixelClock(); this.animationId = this.canvas.requestAnimationFrame(render); }; render(); },
+  particles: [],
+  maxParticles: 224,
+  particlesInitialized: false,
+  calculateTargets: function() {
+    const { isPlaying, timeDigits } = this.data;
+    const { pixelSize, gap, digitHeight } = this;
+    const dpr = this.systemInfo ? this.systemInfo.pixelRatio : 1;
+    const canvasWidth = this.canvas.width / dpr;
+    const canvasHeight = this.canvas.height / dpr;
+    this.particles.forEach(p => p.active = false);
+    let pIndex = 0;
+    if (!isPlaying) {
+      const charPatterns = { '0': [0x3E, 0x41, 0x41, 0x41, 0x3E], '1': [0x00, 0x42, 0x7F, 0x40, 0x00], '2': [0x42, 0x61, 0x51, 0x49, 0x46], '3': [0x22, 0x41, 0x49, 0x49, 0x36], '4': [0x18, 0x14, 0x12, 0x7F, 0x10], '5': [0x27, 0x45, 0x45, 0x45, 0x39], '6': [0x3E, 0x49, 0x49, 0x49, 0x32], '7': [0x01, 0x01, 0x71, 0x09, 0x07], '8': [0x36, 0x49, 0x49, 0x49, 0x36], '9': [0x26, 0x49, 0x49, 0x49, 0x3E], ':': [0x00, 0x24, 0x00] };
+      const chars = [timeDigits[0], timeDigits[1], ':', timeDigits[2], timeDigits[3]];
+      let totalUnits = 0; chars.forEach((char, index) => { totalUnits += (char === ':' ? 3 : 5); if (index < chars.length - 1) totalUnits += 1; });
+      const totalWidth = totalUnits * (pixelSize + gap); let startX = (canvasWidth - totalWidth) / 2; const startY = (canvasHeight - digitHeight * (pixelSize + gap)) / 2;
+      chars.forEach((char) => { const pattern = charPatterns[char]; const w = char === ':' ? 3 : 5; for (let x = 0; x < w; x++) { for (let y = 0; y < 7; y++) { if ((pattern[x] >> y) & 1) { if (pIndex < this.maxParticles) { const p = this.particles[pIndex++]; p.targetX = startX + x * (pixelSize + gap); p.targetY = startY + y * (pixelSize + gap); p.active = true; } } } } startX += (w + 1) * (pixelSize + gap); });
+    } else {
+      const numBars = 32; const maxBarHeight = 7; const totalWidth = numBars * (pixelSize + gap) - gap; const startX = (canvasWidth - totalWidth) / 2; const startY = (canvasHeight - maxBarHeight * (pixelSize + gap)) / 2; const now = Date.now(); this.beat = (this.beat || 0) * 0.92; const beat = this.beat; for (let i = 0; i < numBars; i++) { const center = (numBars - 1) / 2; const distFromCenter = Math.abs(i - center) / center; const envelope = 1 - distFromCenter * 0.3; const noise = Math.sin(now * 0.008 + i * 0.5) * 0.5 + 0.5; const noise2 = Math.cos(now * 0.004 + i * 1.2) * 0.5 + 0.5; const base = (noise * 0.6 + noise2 * 0.4) * envelope; const beatBoost = beat * (0.6 + Math.sin(i * 1.7 + now * 0.02) * 0.4); let barHeight = Math.floor((base + beatBoost) * maxBarHeight) + 1; if (barHeight > maxBarHeight) barHeight = maxBarHeight; if (barHeight < 1) barHeight = 1; for (let y = 0; y < maxBarHeight; y++) { if (pIndex < this.maxParticles) { const p = this.particles[pIndex++]; p.targetX = startX + i * (pixelSize + gap); if (y < barHeight) { p.targetY = startY + (maxBarHeight - 1 - y) * (pixelSize + gap); p.active = true; } else { p.targetY = startY + (maxBarHeight - barHeight) * (pixelSize + gap); p.active = false; } } } }
+    }
+  },
+  drawPixelClock: function () { if (!this.ctx) return; if (this.particles.length === 0) this.particles = Array.from({ length: this.maxParticles }).map(() => ({ x: 0, y: 0, targetX: 0, targetY: 0, active: false, alpha: 0 })); this.calculateTargets(); const { ctx, pixelSize } = this; const { theme } = this.data; const dpr = this.systemInfo ? this.systemInfo.pixelRatio : 1; const canvasWidth = this.canvas.width / dpr; const canvasHeight = this.canvas.height / dpr; ctx.clearRect(0, 0, canvasWidth, canvasHeight); ctx.fillStyle = theme === 'dark' ? '#FFFFFF' : '#000000'; this.particles.forEach(p => { if (!this.particlesInitialized) { p.x = p.targetX; p.y = p.targetY; p.alpha = p.active ? 1 : 0; } else { p.x += (p.targetX - p.x) * 0.15; p.y += (p.targetY - p.y) * 0.15; p.alpha += ((p.active ? 1 : 0) - p.alpha) * 0.15; } if (p.alpha > 0.01) { ctx.globalAlpha = p.alpha; ctx.fillRect(p.x, p.y, pixelSize, pixelSize); } }); ctx.globalAlpha = 1.0; this.particlesInitialized = true; },
+
+  /**
+   * 切换音乐风格主题
+   */
+  switchGenre: function(genre) {
+    if (!genre || genre === this.data.currentGenre) {
+      return; // 避免重复切换
+    }
+
+    console.log('切换风格:', this.data.currentGenre, '->', genre);
+
+    // 获取容器元素
+    const query = wx.createSelectorQuery();
+    query.select('.container').boundingClientRect();
+    query.exec((res) => {
+      if (!res || !res[0]) return;
+
+      // 移除旧的风格类
+      const oldClass = 'genre-' + this.data.currentGenre;
+      const newClass = 'genre-' + genre;
+
+      // 更新状态
+      this.setData({
+        currentGenre: genre,
+        genreTransitioning: true
+      });
+
+      // 通过动态修改 class 实现（微信小程序需要通过 setData）
+      // 注意：这里需要配合 wxml 中的 class 绑定
+      setTimeout(() => {
+        this.setData({ genreTransitioning: false });
+      }, 1500);
+    });
+  },
+
+  /**
+   * 异步获取歌曲风格
+   */
+  fetchGenreAsync: function(songId, songName, artist) {
+    const apiBase = getApp().globalData.apiBase;
+
+    wx.request({
+      url: `${apiBase}/genre`,
+      data: {
+        songId: songId,
+        songName: songName,
+        artist: artist
+      },
+      success: (res) => {
+        if (res.data && res.data.genre) {
+          const genre = res.data.genre;
+          console.log('获取到风格:', genre, '来源:', res.data.source);
+
+          // 更新缓存
+          const genreCache = this.data.genreCache;
+          genreCache[songId] = genre;
+          this.setData({ genreCache });
+
+          // 保存到本地存储
+          wx.setStorageSync('genre_cache', genreCache);
+
+          // 如果当前正在播放这首歌，切换风格
+          if (this.data.currentSong && this.data.currentSong.id === songId) {
+            this.switchGenre(genre);
+          }
+        }
+      },
+      fail: (err) => {
+        console.error('获取风格失败:', err);
+      }
+    });
+  },
+
+  /**
+   * 批量预加载播放队列风格
+   */
+  batchLoadGenres: function(songs) {
+    if (!songs || songs.length === 0) return;
+
+    const apiBase = getApp().globalData.apiBase;
+    const songsData = songs.map(s => ({
+      id: s.id,
+      name: s.title || s.name,
+      artist: s.artist
+    }));
+
+    wx.request({
+      url: `${apiBase}/genres/batch`,
+      method: 'POST',
+      header: { 'Content-Type': 'application/json' },
+      data: songsData,
+      success: (res) => {
+        if (res.data) {
+          console.log('批量加载风格成功:', res.data);
+
+          // 更新缓存
+          const genreCache = this.data.genreCache;
+          Object.assign(genreCache, res.data);
+          this.setData({ genreCache });
+
+          // 保存到本地存储
+          wx.setStorageSync('genre_cache', genreCache);
+        }
+      },
+      fail: (err) => {
+        console.error('批量加载风格失败:', err);
+      }
+    });
+  },
+})

@@ -1,0 +1,175 @@
+/* components/message-bubble/message-bubble.wxss */
+
+/* 通用行 */
+.bubble-row {
+  padding: 8rpx 24rpx;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* 用户消息 */
+.bubble-user {
+  justify-content: flex-end;
+}
+
+.bubble-right {
+  max-width: 75%;
+  background-color: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 12rpx 12rpx 4rpx 12rpx;
+  padding: 16rpx 20rpx;
+}
+
+.bubble-text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* AI 消息 */
+.bubble-ai {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.bubble-left {
+  max-width: 80%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8rpx;
+  background-color: var(--bg-secondary);
+  border-left: 3px solid var(--color-cyan);
+  border-radius: 0 8rpx 8rpx 0;
+  padding: 16rpx 20rpx;
+}
+
+.bubble-prefix {
+  flex-shrink: 0;
+}
+
+.prefix-text {
+  font-size: 28rpx;
+  color: var(--color-cyan);
+  font-weight: bold;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.5;
+}
+
+.ai-text {
+  color: var(--text-secondary);
+  font-size: 26rpx;
+}
+
+.timestamp {
+  font-size: 20rpx;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-bottom: 4rpx;
+}
+
+/* 歌曲结果卡片 */
+.bubble-result {
+  justify-content: flex-start;
+  padding-left: 24rpx;
+  padding-right: 24rpx;
+}
+
+.result-card {
+  max-width: 92%;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12rpx;
+  overflow: hidden;
+  padding: 16rpx;
+  gap: 20rpx;
+}
+
+.result-cover-wrap {
+  flex-shrink: 0;
+}
+
+.result-cover {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 8rpx;
+  background-color: var(--bg-tertiary);
+}
+
+.result-cover-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-tertiary);
+}
+
+.cover-icon {
+  font-size: 40rpx;
+}
+
+.result-info {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.result-song-name {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-artist {
+  font-size: 24rpx;
+  color: var(--color-cyan);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-album {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-action {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-cyan);
+  border-radius: 50%;
+}
+
+.result-play-btn {
+  font-size: 28rpx;
+  color: var(--bg-primary);
+  line-height: 1;
+}
+
+/* 系统消息 */
+.bubble-system {
+  justify-content: center;
+}
+
+.system-text {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8rpx 24rpx;
+  background-color: var(--bg-secondary);
+  border-radius: 8rpx;
+}
