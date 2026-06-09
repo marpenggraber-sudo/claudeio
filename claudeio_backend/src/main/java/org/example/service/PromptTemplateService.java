@@ -18,6 +18,7 @@ public class PromptTemplateService {
             case PLAY_BY_INDEX -> base + " 用户想播放列表里的第几首，请依据缓存列表和索引处理。";
             case PLAY_BY_KEYWORD -> base + " 用户想播放一首歌，请根据歌名/歌手理解后给出列表并可继续播放。";
             case MUSIC_MEMORY -> base + " 用户在询问自己的听歌历史或音乐偏好，请只基于系统提供的记录回答，不要搜索或播放。";
+            case KNOWLEDGE -> base + " 用户在询问音乐知识（艺术家、风格、乐理等），请基于知识库提供专业、准确的回答，不要搜索或播放歌曲。";
             case LOGOUT -> base + " 用户想退出登录，请简短确认。";
             case SWITCH_ACCOUNT -> base + " 用户想切换账号，请引导输入账号密码或确认切换结果。";
             case PLAYER_CONTROL -> base + " 用户想控制播放器（暂停、继续、下一首、上一首、调整音量），请简短确认操作。";

@@ -5,6 +5,7 @@ import org.example.dto.LoginResponse;
 import org.example.dto.MusicSongDto;
 import org.example.service.AuthService;
 import org.example.service.MusicApiService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,7 @@ public class MusicTools {
 
     public MusicTools(MusicApiService musicApiService,
                      AuthService authService,
-                     RedisTemplate<String, Object> redisTemplate) {
+                     @Autowired(required = false) RedisTemplate<String, Object> redisTemplate) {
         this.musicApiService = musicApiService;
         this.authService = authService;
         this.redisTemplate = redisTemplate;

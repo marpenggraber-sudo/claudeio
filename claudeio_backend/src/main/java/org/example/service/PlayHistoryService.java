@@ -66,4 +66,23 @@ public class PlayHistoryService {
         return getCompletedHistory(userId).stream().findAny().isPresent()
                 || !getRecentHistory(userId, 30).isEmpty();
     }
+
+    /**
+     * 获取用户最近听过的歌曲 ID 列表（用于推荐去重）
+     * 只返回完整播放的歌曲 ID，避免过滤掉用户跳过的歌曲
+     *
+     * @param userId 用户 ID
+     * @param limit 返回的最大数量
+     * @return 最近听过的歌曲 ID 列表
+     */
+    public List<Long> getRecentSongIds(Long userId, int limit) {
+        List<PlayHistory> completedHistory = playHistoryRepository.findCompletedByUserId(userId);
+        List<Long> songIds = completedHistory.stream()
+            .limit(limit)
+            .map(PlayHistory::getSongId)
+            .distinct()  // 去重
+            .toList();
+        log.info("[MusicMemory] 查询最近听过的歌曲ID: userId={}, limit={}, count={}", userId, limit, songIds.size());
+        return songIds;
+    }
 }

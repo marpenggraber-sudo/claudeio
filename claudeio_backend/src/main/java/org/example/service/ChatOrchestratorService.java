@@ -14,6 +14,7 @@ import org.example.tools.MusicTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ public class ChatOrchestratorService {
         this.ragService = ragService;
     }
 
+    @Transactional
     public AgentReply chat(String message, Long userId) {
         // 第1步：保存用户消息
         musicApiService.saveConversation(userId, "user", message);
@@ -70,12 +72,22 @@ public class ChatOrchestratorService {
         }
         String systemPrompt = promptTemplateService.buildSystemPrompt(intent);
 
-        // 第4步：使用RAG检索相关知识
-        List<KnowledgeDocument> relevantKnowledge = ragService.retrieveRelevantKnowledge(message, 3);
-        String knowledgeContext = ragService.formatKnowledgeContext(relevantKnowledge);
+        // 第4步：条件 RAG 触发 - 仅在需要知识的意图下检索
+        List<KnowledgeDocument> relevantKnowledge = List.of();
+        String knowledgeContext = "";
 
-        if (!relevantKnowledge.isEmpty()) {
-            log.info("[RAG] 为用户消息检索到 {} 条相关知识", relevantKnowledge.size());
+        // 只在 KNOWLEDGE、CHAT、UNKNOWN 意图时使用 RAG
+        if (intent.type() == IntentType.KNOWLEDGE ||
+            intent.type() == IntentType.CHAT ||
+            intent.type() == IntentType.UNKNOWN) {
+            relevantKnowledge = ragService.retrieveRelevantKnowledge(message, 3);
+            knowledgeContext = ragService.formatKnowledgeContext(relevantKnowledge);
+
+            if (!relevantKnowledge.isEmpty()) {
+                log.info("[RAG] 意图={}, 检索到 {} 条相关知识", intent.type(), relevantKnowledge.size());
+            }
+        } else {
+            log.debug("[RAG] 意图={}, 跳过 RAG 检索", intent.type());
         }
 
         // 第5步：将历史上下文和知识库上下文添加到系统提示中
@@ -88,6 +100,7 @@ public class ChatOrchestratorService {
             case PLAY_BY_INDEX -> handlePlayByIndex(intent, userId, promptWithHistory);
             case PLAY_BY_KEYWORD -> handlePlayByKeyword(message, userId, promptWithHistory);
             case MUSIC_MEMORY -> handleMusicMemory(message, userId, promptWithHistory);
+            case KNOWLEDGE -> handleKnowledge(promptWithHistory, userId);
             case LOGOUT -> handleLogout(userId, promptWithHistory);
             case SWITCH_ACCOUNT -> handleSwitchAccount(message, userId, promptWithHistory);
             case PLAYER_CONTROL -> handlePlayerControl(message, userId, promptWithHistory);
@@ -200,11 +213,14 @@ public class ChatOrchestratorService {
     private AgentReply handleSearch(IntentResult intent, String message, Long userId, String systemPrompt) {
         log.info("[Recommend] 开始处理搜索/推荐请求: userId={}, message={}", userId, message);
 
-        // 第1步：检测用户是否有可用于推荐的播放历史
+        // 第1步：加载对话历史用于上下文理解
+        String conversationHistory = loadConversationHistory(userId);
+
+        // 第2步：检测用户是否有可用于推荐的播放历史
         boolean hasPlayHistory = playHistoryService.hasRecommendationHistory(userId);
         log.info("[Recommend] 用户是否有可用于推荐的听歌历史: userId={}, hasPlayHistory={}", userId, hasPlayHistory);
 
-        // 第2步：检测是否为推荐请求（没有明确歌名或歌手）
+        // 第3步：检测是否为推荐请求（没有明确歌名或歌手）
         String detectPrompt = "用户说：" + message +
             "\n\n判断用户是否在请求推荐音乐（没有明确指定歌名或歌手）。" +
             "\n如果用户说’我想听歌’、’推荐一些歌’、’来点音乐’等，返回’recommend’" +
@@ -216,13 +232,34 @@ public class ChatOrchestratorService {
 
         log.info("[Recommend] 请求类型: userId={}, requestType={}", userId, requestType);
 
-        // 第3步：让 AI 提取搜索关键词和数量
-        String extractPrompt = "用户说：" + message +
-            "\n\n请从用户输入中提取音乐搜索关键词和数量。" +
-            "\n如果用户没有明确说明歌名或歌手，返回’generic’" +
-            "\n如果用户明确说了歌名或歌手，提取具体的关键词" +
-            "\n\n如果用户明确要求数量（如’推荐10首’），返回格式：关键词|数量" +
-            "\n如果没有明确数量，只返回关键词。";
+        // 第4步：让 AI 提取搜索关键词和数量（包含对话历史）
+        String extractPrompt = """
+            对话历史：
+            %s
+
+            用户当前说："%s"
+
+            任务：从用户输入中提取音乐搜索关键词。**重要：参考对话历史理解用户的真实意图。**
+
+            规则：
+            1. **优先参考对话历史**：如果用户说"来10首吧"、"再来点"、"多来点"等模糊表达，从对话历史中查找最近提到的场景或风格
+            2. 如果用户明确提到歌名或歌手，提取具体的歌名/歌手（例如："青花瓷"、"周杰伦"）
+            3. 如果用户提到场景或用途（健身、跑步、睡觉、学习、开车等），提取场景关键词（例如："健身"、"跑步"）
+            4. 如果用户提到风格（流行、摇滚、民谣等），提取风格（例如："流行"、"摇滚"）
+            5. 只有当用户非常泛泛地说"推荐歌"、"来点音乐"、"随便推荐"，且对话历史中没有明确场景时，才返回"generic"
+            6. 如果用户明确要求数量（如"推荐10首"、"来10首"），返回格式：关键词|数量
+
+            示例（考虑对话历史）：
+            - 历史："来点健身的音乐" → 当前："来10首吧" → "健身|10"（延续健身场景）
+            - 历史："推荐跑步的歌" → 当前："再来点" → "跑步"（延续跑步场景）
+            - 无历史 → 当前："来点健身的音乐" → "健身"
+            - 无历史 → 当前："搜索青花瓷" → "青花瓷"
+            - 无历史 → 当前："周杰伦的歌" → "周杰伦"
+            - 无历史 → 当前："推荐10首民谣" → "民谣|10"
+            - 无历史 → 当前："随便推荐几首" → "generic"
+
+            只返回提取结果，不要解释。
+            """.formatted(conversationHistory.isBlank() ? "（无对话历史）" : conversationHistory, message);
 
         String extracted = chatLanguageModel.generate(UserMessage.from(extractPrompt))
             .content().text().trim();
@@ -290,11 +327,26 @@ public class ChatOrchestratorService {
             return new AgentReply(reply, List.of(), null, null, null, null);
         }
 
-        // 第5步：限制返回数量
-        List<MusicSongDto> limitedSongs = songs.stream().limit(limit).toList();
+        // 第5步：过滤掉用户最近听过的歌曲（提升推荐多样性）
+        List<Long> recentSongIds = playHistoryService.getRecentSongIds(userId, 20);
+        List<MusicSongDto> filteredSongs = songs.stream()
+            .filter(song -> !recentSongIds.contains(song.getId()))
+            .toList();
+
+        // 如果过滤后没有歌曲了，使用原始列表
+        if (filteredSongs.isEmpty()) {
+            log.info("[Recommend] 过滤后无可用歌曲，使用原始结果: userId={}", userId);
+            filteredSongs = songs;
+        } else {
+            log.info("[Recommend] 过滤已听歌曲: userId={}, 原始={}, 过滤后={}",
+                userId, songs.size(), filteredSongs.size());
+        }
+
+        // 第6步：限制返回数量
+        List<MusicSongDto> limitedSongs = filteredSongs.stream().limit(limit).toList();
         musicApiService.cacheRecommend(userId, limitedSongs);
 
-        // 第6步：构建简洁的歌曲列表文本
+        // 第7步：构建简洁的歌曲列表文本
         String songsList = limitedSongs.isEmpty() ? "未找到相关歌曲" :
             limitedSongs.stream()
                 .map(s -> s.getName() + " - " + s.getArtist())
@@ -647,5 +699,13 @@ public class ChatOrchestratorService {
         }
 
         return new AgentReply(replyText, List.of(), null, action, null, null);
+    }
+
+    private AgentReply handleKnowledge(String prompt, Long userId) {
+        // KNOWLEDGE 意图专门处理音乐知识问答
+        // RAG 已在条件触发中检索相关知识，这里直接生成回答
+        log.info("[Knowledge] 处理音乐知识问答: userId={}", userId);
+        String reply = chatLanguageModel.generate(UserMessage.from(prompt)).content().text();
+        return new AgentReply(reply, List.of(), null, null, null, null);
     }
 }

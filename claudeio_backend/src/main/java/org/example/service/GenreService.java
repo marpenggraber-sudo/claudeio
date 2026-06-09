@@ -30,7 +30,7 @@ public class GenreService {
     private static final String GENRE_CACHE_PREFIX = "music:genre:";
     private static final long GENRE_CACHE_TTL = 30 * 24 * 60 * 60; // 30天
 
-    @Autowired
+    @Autowired(required = false)
     private RedisTemplate<String, String> redisTemplate;
 
     @Autowired
@@ -43,12 +43,18 @@ public class GenreService {
      * 获取歌曲风格（三级缓存）
      */
     public GenreResult getGenre(Long songId, String songName, String artist) {
-        // L1: Redis 缓存
-        String cacheKey = GENRE_CACHE_PREFIX + songId;
-        String cachedGenre = redisTemplate.opsForValue().get(cacheKey);
-        if (cachedGenre != null && !cachedGenre.isEmpty()) {
-            log.debug("从 Redis 缓存获取风格: songId={}, genre={}", songId, cachedGenre);
-            return GenreResult.fromCache(cachedGenre);
+        // L1: Redis 缓存（如果可用）
+        if (redisTemplate != null) {
+            try {
+                String cacheKey = GENRE_CACHE_PREFIX + songId;
+                String cachedGenre = redisTemplate.opsForValue().get(cacheKey);
+                if (cachedGenre != null && !cachedGenre.isEmpty()) {
+                    log.debug("从 Redis 缓存获取风格: songId={}, genre={}", songId, cachedGenre);
+                    return GenreResult.fromCache(cachedGenre);
+                }
+            } catch (Exception e) {
+                log.warn("Redis 读取风格失败: {}", e.getMessage());
+            }
         }
 
         // L2: 数据库查询（最近播放记录）
@@ -190,8 +196,14 @@ public class GenreService {
      * 缓存到 Redis
      */
     private void cacheToRedis(Long songId, String genre) {
-        String cacheKey = GENRE_CACHE_PREFIX + songId;
-        redisTemplate.opsForValue().set(cacheKey, genre, GENRE_CACHE_TTL, TimeUnit.SECONDS);
+        if (redisTemplate != null) {
+            try {
+                String cacheKey = GENRE_CACHE_PREFIX + songId;
+                redisTemplate.opsForValue().set(cacheKey, genre, GENRE_CACHE_TTL, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("Redis 缓存风格失败: {}", e.getMessage());
+            }
+        }
     }
 
     /**

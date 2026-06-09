@@ -7,12 +7,29 @@
       <text class="subtitle">{{mode === 'register' ? '创建新账号' : '欢迎回来'}}</text>
     </view>
 
-    <!-- 表单区域 -->
-    <view class="form-section">
+    <!-- 登录方式切换 -->
+    <view class="method-switch">
+      <view class="switch-item {{loginMethod === 'manual' ? 'active' : ''}}"
+            bindtap="switchLoginMethod"
+            data-value="manual">
+        <text class="switch-icon">✏️</text>
+        <text class="switch-text">手动输入</text>
+      </view>
+      <view class="switch-item {{loginMethod === 'qrcode' ? 'active' : ''}}"
+            bindtap="switchLoginMethod"
+            data-value="qrcode">
+        <text class="switch-icon">📷</text>
+        <text class="switch-text">扫码登录</text>
+      </view>
+    </view>
+
+    <!-- 手动登录表单 -->
+    <view wx:if="{{loginMethod === 'manual'}}" class="form-section">
       <view class="input-group">
         <text class="input-label">账号</text>
         <input
           class="input-field"
+          placeholder="请输入账号"
           bindinput="onAccountInput"
           value="{{account}}"
         />
@@ -22,6 +39,7 @@
         <text class="input-label">密码</text>
         <input
           class="input-field"
+          placeholder="请输入密码"
           password="true"
           bindinput="onPasswordInput"
           value="{{password}}"
@@ -32,19 +50,68 @@
         <text class="input-label">网易云音乐 Cookie</text>
         <textarea
           class="input-field textarea-field"
+          placeholder="MUSIC_U=xxx..."
           bindinput="onCookieInput"
           value="{{cookie}}"
           maxlength="-1"
           auto-height
         />
+        <text class="input-hint">💡 提示：可使用"扫码登录"自动获取 Cookie</text>
+      </view>
+
+      <!-- 手动登录按钮 -->
+      <view class="button-section">
+        <button class="primary-button" bindtap="submit" loading="{{loading}}">
+          {{mode === 'register' ? '立即注册' : '立即登录'}}
+        </button>
       </view>
     </view>
 
-    <!-- 按钮区域 -->
-    <view class="button-section">
-      <button class="primary-button" bindtap="submit" loading="{{loading}}">
-        {{mode === 'register' ? '立即注册' : '立即登录'}}
-      </button>
+    <!-- 二维码登录表单 -->
+    <view wx:if="{{loginMethod === 'qrcode'}}" class="form-section">
+      <view class="netease-header">
+        <text class="netease-title">📷 扫码登录</text>
+        <text class="netease-subtitle">使用网易云音乐 APP 扫码</text>
+      </view>
+
+      <!-- 二维码显示区域 -->
+      <view class="qrcode-container">
+        <view wx:if="{{!qrCodeImg}}" class="qrcode-loading">
+          <text class="loading-text">正在生成二维码...</text>
+        </view>
+        <image wx:if="{{qrCodeImg}}"
+               class="qrcode-image"
+               src="{{qrCodeImg}}"
+               mode="aspectFit"/>
+        <view wx:if="{{qrCodeImg && qrCodeExpired}}" class="qrcode-expired">
+          <text class="expired-text">二维码已过期</text>
+          <button class="refresh-button" bindtap="generateQrCode">
+            🔄 刷新
+          </button>
+        </view>
+      </view>
+
+      <!-- 状态提示 -->
+      <view class="qrcode-status">
+        <text class="status-text">{{qrCodeStatus}}</text>
+      </view>
+
+      <view class="security-tip">
+        <text class="tip-icon">🔒</text>
+        <text class="tip-text">请打开网易云音乐 APP 扫描二维码登录</text>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="button-section">
+        <button class="primary-button" bindtap="generateQrCode" loading="{{loading}}">
+          {{qrCodeImg ? '🔄 刷新二维码' : '🚀 生成二维码'}}
+        </button>
+        <text class="button-hint">登录成功后将自动填充 Cookie</text>
+      </view>
+    </view>
+
+    <!-- 底部操作 -->
+    <view class="bottom-section">
       <button class="secondary-button" bindtap="switchMode" type="default">
         {{mode === 'register' ? '已有账号？去登录' : '没有账号？去注册'}}
       </button>

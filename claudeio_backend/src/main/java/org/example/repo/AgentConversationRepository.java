@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface AgentConversationRepository extends JpaRepository<AgentConversation, Long> {
     List<AgentConversation> findTop10ByUser_MusicUserIdOrderByCreatedAtDesc(Long musicUserId);
+    List<AgentConversation> findTop20ByUser_IdOrderByCreatedAtDesc(Long userId);
 }

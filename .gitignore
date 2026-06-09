@@ -19,3 +19,15 @@ target/
 
 # Frontend (WeChat Mini Program)
 node_modules/
+
+# Temporary files
+temp_output.txt
+*.tmp
+
+# Assignment materials (local only)
+作业要求/
+
+# Environment specific configs
+application-local.properties
+application-dev.properties
+application.properties

@@ -52,6 +52,10 @@ public class IntentClassifierService {
             return new IntentResult(IntentType.MUSIC_MEMORY, text, null);
         }
 
+        if (isKnowledgeIntent(text)) {
+            return new IntentResult(IntentType.KNOWLEDGE, text, null);
+        }
+
         Matcher matcher = INDEX_PATTERN.matcher(text);
         if (matcher.matches() && isPlayIntent(text)) {
             return new IntentResult(IntentType.PLAY_BY_INDEX, text, Integer.parseInt(matcher.group(1)));
@@ -78,6 +82,17 @@ public class IntentClassifierService {
     }
 
     private IntentResult classifyWithContext(String message, String conversationHistory) {
+        // 先检查是否是简单的肯定/否定回复
+        if (isAffirmativeResponse(message)) {
+            // 肯定回复 - 从对话历史中提取上一次提到的主题
+            return new IntentResult(IntentType.CHAT, message, null);
+        }
+
+        if (isNegativeResponse(message)) {
+            // 否定回复 - 也当作聊天处理
+            return new IntentResult(IntentType.CHAT, message, null);
+        }
+
         String prompt = """
             根据对话历史和用户当前消息，判断用户的意图。
 
@@ -86,11 +101,15 @@ public class IntentClassifierService {
 
             用户当前消息：%s
 
+            特别注意：
+            - 如果用户只是说"好的"、"可以"、"行"等肯定回复，应该识别为 CHAT，不要当作搜索关键词
+            - 如果用户说"不要"、"算了"、"换一个"等否定回复，应该识别为 CHAT
+
             请判断用户意图，只返回以下关键词之一：
-            - SEARCH（用户想搜索/推荐歌曲，如回答"中文歌"、"周杰伦"等）
+            - SEARCH（用户想搜索/推荐歌曲，如回答"中文歌"、"周杰伦"等具体内容）
             - PLAY_BY_INDEX（用户想播放第几首，如"1"、"第2首"）
             - PLAY_BY_KEYWORD（用户想播放特定歌曲）
-            - CHAT（普通聊天）
+            - CHAT（普通聊天、肯定/否定回复）
 
             只返回关键词，不要其他内容。
             """.formatted(conversationHistory, message);
@@ -116,6 +135,33 @@ public class IntentClassifierService {
             case "PLAY_BY_KEYWORD" -> new IntentResult(IntentType.PLAY_BY_KEYWORD, message, null);
             default -> new IntentResult(IntentType.CHAT, message, null);
         };
+    }
+
+    /**
+     * 判断是否是肯定性回复
+     */
+    private boolean isAffirmativeResponse(String text) {
+        String lower = text.toLowerCase().trim();
+        return lower.equals("好的") || lower.equals("好") ||
+               lower.equals("可以") || lower.equals("行") ||
+               lower.equals("嗯") || lower.equals("嗯嗯") ||
+               lower.equals("ok") || lower.equals("okay") ||
+               lower.equals("是的") || lower.equals("对") ||
+               lower.equals("对的") || lower.equals("没问题") ||
+               lower.equals("👌") || lower.equals("✅");
+    }
+
+    /**
+     * 判断是否是否定性回复
+     */
+    private boolean isNegativeResponse(String text) {
+        String lower = text.toLowerCase().trim();
+        return lower.equals("不用了") || lower.equals("不用") ||
+               lower.equals("算了") || lower.equals("不要") ||
+               lower.equals("不") || lower.equals("换一个") ||
+               lower.equals("不喜欢") || lower.equals("不想") ||
+               lower.equals("no") || lower.equals("nope") ||
+               lower.equals("❌");
     }
 
     private boolean isGreeting(String text) {
@@ -157,6 +203,20 @@ public class IntentClassifierService {
                text.contains("常听") || text.contains("偏好") ||
                text.contains("我喜欢什么") || text.contains("喜欢的歌手") ||
                text.contains("我喜欢的歌") || text.contains("我的喜好");
+    }
+
+    private boolean isKnowledgeIntent(String text) {
+        // 音乐知识问答特征：什么是、是谁、介绍、讲讲、知道吗
+        return text.contains("什么是") || text.contains("是什么") ||
+               text.contains("是谁") || text.contains("介绍") ||
+               text.contains("讲讲") || text.contains("了解") ||
+               text.contains("知道") && text.contains("吗") ||
+               text.contains("告诉我") && (text.contains("关于") || text.contains("的")) ||
+               text.matches(".*[周陈王李张]\\S{1,3}是.*") ||  // 如：周杰伦是谁
+               text.matches(".*[R&BrockjazzJazz]{2,5}.*") && (text.contains("是") || text.contains("什么")) ||
+               text.contains("风格") && !text.contains("推荐") ||
+               text.contains("流派") || text.contains("音乐类型") ||
+               text.contains("乐器") || text.contains("曲风");
     }
 
     private boolean isSwitchAccountIntent(String text) {

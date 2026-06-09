@@ -59,9 +59,14 @@ Page({
 
     this.audio = wx.createInnerAudioContext();
     this.audio.volume = (this.data.volume || 80) / 100;
+
+    // 设置音频加载超时（对大文件很重要）
+    this.audio.obeyMuteSwitch = false; // 不遵循静音开关
+
     this.audio.onPlay(() => {
       this.setData({ isPlaying: true });
       this.recordPlayStart();
+      console.log('音频开始播放');
     });
     this.audio.onPause(() => {
       this.setData({ isPlaying: false });
@@ -77,12 +82,53 @@ Page({
     });
     this.audio.onError((err) => {
       console.error('audio error', err);
-      wx.showToast({ title: '播放失败', icon: 'none' });
+
+      // 根据不同错误类型提供更详细的提示
+      let errorMessage = '播放失败';
+
+      if (err && err.errMsg) {
+        if (err.errMsg.includes('timeout')) {
+          errorMessage = '加载超时，请检查网络或稍后重试';
+        } else if (err.errMsg.includes('network')) {
+          errorMessage = '网络错误，请检查网络连接';
+        } else if (err.errMsg.includes('format')) {
+          errorMessage = '音频格式不支持';
+        } else if (err.errMsg.includes('decode')) {
+          errorMessage = '音频解码失败';
+        }
+      }
+
+      wx.showToast({
+        title: errorMessage,
+        icon: 'none',
+        duration: 3000
+      });
+
       this.setData({ isPlaying: false });
       this.recordPlayCompletion(false);
     });
     this.audio.onTimeUpdate(() => { this.syncLyric(); if (this.data.seeking) return; const ct = this.audio.currentTime || 0; const du = this.audio.duration || 0; this.setData({ currentTime: ct, duration: du, currentTimeStr: this.formatTime(ct), durationStr: this.formatTime(du) }); });
-    this.audio.onCanplay(() => { const du = this.audio.duration || 0; if (du) this.setData({ duration: du, durationStr: this.formatTime(du) }); });
+    this.audio.onCanplay(() => {
+      const du = this.audio.duration || 0;
+      if (du) {
+        this.setData({ duration: du, durationStr: this.formatTime(du) });
+        console.log('音频可以播放，时长:', this.formatTime(du));
+      }
+    });
+
+    // 添加等待播放事件（音频正在缓冲）
+    this.audio.onWaiting(() => {
+      console.log('音频缓冲中...');
+    });
+
+    // 添加可以播放事件（缓冲完成）
+    this.audio.onSeeking(() => {
+      console.log('音频跳转中...');
+    });
+
+    this.audio.onSeeked(() => {
+      console.log('音频跳转完成');
+    });
   },
 
   loadGreeting: function(userId) {
@@ -462,9 +508,15 @@ Page({
     wx.request({
       url: `${apiBase}/play-url`,
       data: { songId: track.id, userId },
+      timeout: 30000, // 设置 30 秒超时（加载大文件需要更长时间）
       success: (res) => {
         const url = res.data && res.data.url;
-        if (!url) { wx.showToast({ title: '无版权或无法播放', icon: 'none' }); return; }
+        if (!url) {
+          wx.showToast({ title: '无版权或无法播放', icon: 'none' });
+          return;
+        }
+
+        console.log('播放 URL 获取成功:', url.substring(0, 80) + '...');
 
         this.setData({
           currentTrackIndex: index,
@@ -476,9 +528,22 @@ Page({
           }
         });
 
+        // 设置音频源
         this.audio.src = url;
+
+        // 添加播放前的日志
+        console.log('开始播放音乐，文件大小预计:', res.data.size || '未知');
+
         this.audio.play();
         this.loadLyric(track.id);
+      },
+      fail: (err) => {
+        console.error('获取播放 URL 失败:', err);
+        wx.showToast({
+          title: '获取播放链接失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
       }
     });
   },

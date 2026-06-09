@@ -131,8 +131,19 @@ node app.js
 ```bash
 cd claudeio_backend
 
-# 设置 DeepSeek API Key
+# 复制配置模板并编辑
+cd src/main/resources
+cp application.properties.template application.properties
+# 编辑 application.properties，修改以下配置：
+# - spring.datasource.password=你的MySQL密码
+# - 其他需要自定义的配置
+
+# 返回项目根目录
+cd ../../..
+
+# 设置 DeepSeek API Key（环境变量）
 export DEEPSEEK_API_KEY="your-api-key-here"
+# Windows 使用: set DEEPSEEK_API_KEY=your-api-key-here
 
 # Maven 启动
 mvn spring-boot:run
@@ -140,7 +151,7 @@ mvn spring-boot:run
 
 后端默认运行在 `http://localhost:8080`。
 
-> 如需修改数据库/Redis/AI 配置，编辑 `src/main/resources/application.properties`。
+> **注意**: `application.properties` 包含敏感信息，已在 `.gitignore` 中排除，不会提交到 Git。请根据 `application.properties.template` 模板创建你自己的配置文件。
 
 ### 4. 启动前端
 

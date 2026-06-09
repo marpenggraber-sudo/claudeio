@@ -11,6 +11,7 @@ import org.example.entity.MusicKnowledge;
 import org.example.repository.MusicKnowledgeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,12 @@ public class RagService {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final MusicKnowledgeRepository knowledgeRepository;
+
+    @Value("${rag.similarity.threshold:0.7}")
+    private double similarityThreshold;
+
+    @Value("${rag.max.results:3}")
+    private int defaultMaxResults;
 
     public RagService(EmbeddingModel embeddingModel,
                       EmbeddingStore<TextSegment> embeddingStore,
@@ -94,7 +101,7 @@ public class RagService {
      */
     public List<KnowledgeDocument> retrieveRelevantKnowledge(String query, int maxResults) {
         try {
-            log.info("[RAG] 检索相关知识: query={}, maxResults={}", query, maxResults);
+            log.info("[RAG] 检索相关知识: query={}, maxResults={}, threshold={}", query, maxResults, similarityThreshold);
 
             // 生成查询的嵌入向量
             Embedding queryEmbedding = embeddingModel.embed(query).content();
@@ -103,7 +110,7 @@ public class RagService {
             List<EmbeddingMatch<TextSegment>> matches = embeddingStore.findRelevant(
                 queryEmbedding,
                 maxResults,
-                0.5 // 最小相似度阈值
+                similarityThreshold  // 使用配置的阈值（默认 0.7）
             );
 
             // 转换为知识文档
@@ -122,7 +129,9 @@ public class RagService {
                 })
                 .collect(Collectors.toList());
 
-            log.info("[RAG] 检索完成: query={}, foundCount={}", query, results.size());
+            log.info("[RAG] 检索完成: query={}, foundCount={}, scores={}",
+                query, results.size(),
+                results.stream().map(doc -> String.format("%.2f", doc.getRelevanceScore())).toList());
             return results;
 
         } catch (Exception e) {
