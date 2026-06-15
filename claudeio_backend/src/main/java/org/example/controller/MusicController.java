@@ -2,6 +2,7 @@ package org.example.controller;
 
 import jakarta.validation.Valid;
 import org.example.dto.*;
+import org.example.entity.PlayHistory;
 import org.example.service.AgentFacadeService;
 import org.example.service.AuthService;
 import org.example.service.CaptchaLoginService;
@@ -287,4 +288,18 @@ public class MusicController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * 获取用户的播放历史列表（前端歌词页侧滑调用）
+     */
+    @GetMapping("/play-history")
+    public ResponseEntity<List<PlayHistory>> getPlayHistory(@RequestParam Long userId) {
+        if (userId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        // 调用我们刚刚在 Service 中写好的去重方法
+        List<PlayHistory> history = playHistoryService.getUniqueRecentHistory(userId);
+        return ResponseEntity.ok(history);
+    }
+
 }

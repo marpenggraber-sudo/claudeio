@@ -1,0 +1,29 @@
+<view class="page-wrapper dark">
+  <view class="glow-wrapper">
+    <view class="container">
+      <view class="content">
+         
+         <view class="profile-section">
+            <image class="avatar-large" src="https://img.yzcdn.cn/vant/cat.jpeg"></image>
+            <text class="nickname">{{nickname}}</text>
+            <text class="user-id">用户 ID: {{userId}}</text>
+         </view>
+
+         <view class="action-section">
+            <view class="action-btn" bindtap="handleUpdateCookies">
+               <text>更新 COOKIES</text>
+            </view>
+            <view class="action-btn logout-btn" bindtap="handleLogout">
+               <text>退出登录</text>
+            </view>
+         </view>
+
+         <view class="footer">
+           <text>CLAUDIO FM.</text>
+           <text>系统已就绪</text>
+         </view>
+         
+      </view>
+    </view>
+  </view>
+</view>

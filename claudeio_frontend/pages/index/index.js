@@ -24,11 +24,19 @@ Page({
     volume: 80,
     chatInput: '',
     messages: [],
+    isAiThinking: false, // 控制等待气泡显示的标志位
     playStartTime: null,
     currentSong: null,
     currentGenre: 'default',  // 当前风格
     genreCache: {},           // 本地缓存 {songId: genre}
-    genreTransitioning: false // 切换动画状态
+    genreTransitioning: false ,// 切换动画状态
+    containerClass: 'container genre-default' ,
+    isTyping: false,      // 控制专注模式的开关
+    keyboardHeight: 0,    // 实时记录键盘高度
+    playerTab: 0, // 0: 歌词, 1: 历史记录
+    playHistory: [], // 历史记录数据
+    isHistoryLoaded: false, // 避免每次滑动都重复请求
+    swiperDuration: 300, // 动态控制 swiper 的左右切换动画时间
   },
 
   canvas: null,
@@ -131,6 +139,20 @@ Page({
     });
   },
 
+// 1. 新增 onShow 生命周期
+onShow: function () {
+  const userId = wx.getStorageSync('music_userId');
+  // 若缓存有 userId 且当前未登录，说明刚从登录页返回
+  if (userId && !this.data.isLoggedIn) {
+    this.setData({ isLoggedIn: true });
+    this.loadGreeting(userId); // 重新加载队列和问候
+  } 
+  // 若缓存已被清空（如已退出登录），重置状态
+  else if (!userId && this.data.isLoggedIn) {
+    this.setData({ isLoggedIn: false });
+  }
+},
+
   loadGreeting: function(userId) {
     wx.request({
       url: `${getApp().globalData.apiBase}/greeting`,
@@ -193,13 +215,24 @@ Page({
       return;
     }
     const userMsg = { id: Date.now(), role: 'user', author: 'YOU', content: message };
-    this.setData({ messages: [...this.data.messages, userMsg], chatInput: '' });
+    // 1. 发送前：追加用户消息，开启 AI 思考状态并滚动到底部
+    this.setData({ 
+      messages: [...this.data.messages, userMsg], 
+      chatInput: '',
+      isAiThinking: true 
+    }, () => {
+      this.scrollChatToBottom();
+    });
+
     wx.request({
       url: `${getApp().globalData.apiBase}/chat`,
       method: 'POST',
       header: { 'Content-Type': 'application/json' },
       data: { message, userId: Number(userId) },
       success: (res) => {
+        // 2. 请求返回：首要任务是关闭 AI 思考状态
+        this.setData({ isAiThinking: false });
+        
         const reply = res.data?.reply || '';
         const songs = res.data?.songs || [];
         const songId = res.data?.songId;
@@ -394,6 +427,8 @@ Page({
             currentTrackIndex: 0,
             currentTrack: queue[0].title + ' - ' + queue[0].artist,
             showPlayerView: true,
+            swiperDuration: 0, // 【新增】：自动唤醒时动画时长设为 0
+            playerTab: 0,       // 【新增】：自动唤醒时强制回归歌词页
             messages: nextMessages
           }, () => {
             this.scrollChatToBottom();
@@ -408,11 +443,26 @@ Page({
           }
         }
       },
-      fail: () => wx.showToast({ title: '对话失败', icon: 'none' })
+      fail: () => {
+        // 3. 请求失败：兜底关闭状态
+        this.setData({ isAiThinking: false });
+        wx.showToast({ title: '对话失败', icon: 'none' });
+      }
     });
+
+
   },
 
+// 控制聊天视图滚动逻辑
   scrollChatToBottom: function () {
+    // 如果处于等待状态，优先滚动到等待气泡
+    if (this.data.isAiThinking) {
+      setTimeout(() => {
+        this.setData({ chatScrollIntoView: 'msg-thinking' });
+      }, 50);
+      return;
+    }
+    
     const messages = this.data.messages;
     if (messages.length === 0) return;
     const lastMsg = messages[messages.length - 1];
@@ -589,6 +639,15 @@ Page({
       },
       success: (res) => {
         console.log('播放记录已保存', res.data, this.data.currentSong);
+        
+        // 播放记录保存成功后，处理状态
+        // 如果用户正好正开着抽屉并且停留在历史记录页，直接静默刷新列表
+        if (this.data.showPlayerView && this.data.playerTab === 1) {
+          this.fetchPlayHistory();
+        } else {
+          // 否则只需将标志位重置，等用户下次滑动过去时就会自动获取最新数据
+          this.setData({ isHistoryLoaded: false });
+        }
       },
       fail: (err) => {
         console.error('播放记录保存失败', err);
@@ -607,12 +666,79 @@ Page({
   seekToLyric: function (e) { const timeMs = e.currentTarget.dataset.time; const idx = e.currentTarget.dataset.index; if (!this.audio || !this.audio.src) return; const sec = timeMs / 1000; this.audio.seek(sec); if (this.audio.paused) this.audio.play(); this.setData({ currentLyricIndex: idx, currentTime: sec, currentTimeStr: this.formatTime(sec) }); },
   onReady: function () { const query = wx.createSelectorQuery(); query.select('#clockCanvas').fields({ node: true, size: true }).exec((res) => { if (!res[0]) return; const canvas = res[0].node; const ctx = canvas.getContext('2d'); const dpr = this.systemInfo ? this.systemInfo.pixelRatio : 1; canvas.width = res[0].width * dpr; canvas.height = res[0].height * dpr; ctx.scale(dpr, dpr); this.canvas = canvas; this.ctx = ctx; this.startClockAnimation(); }); },
   onUnload: function () { if (this.data.timer) clearInterval(this.data.timer); if (this.animationId) this.canvas.cancelAnimationFrame(this.animationId); if (this.audio) this.audio.destroy(); },
-  togglePlay: function () { const { queue, currentTrackIndex, isPlaying } = this.data; if (!queue.length) return; if (isPlaying) { this.audio.pause(); this.setData({ showPlayerView: false }); return; } if (!this.audio.src) { const track = queue[currentTrackIndex]; this.loadAndPlayTrack(track, currentTrackIndex); } else { this.audio.play(); } this.setData({ showPlayerView: true }); },
-  closePlayerView: function () { this.setData({ showPlayerView: false }); },
-  tapQueueItem: function (e) { const index = e.currentTarget.dataset.index; const { queue, currentTrackIndex } = this.data; if (index === currentTrackIndex) return; const above = queue.slice(0, index); const clicked = queue[index]; const below = queue.slice(index + 1); const newQueue = [clicked, ...below, ...above]; this.audio.stop(); this.audio.src = ''; this.setData({ queue: newQueue, currentTrackIndex: 0, currentTrack: clicked.title + ' - ' + clicked.artist, showPlayerView: true }, () => { this.loadAndPlayTrack(clicked, 0); }); },
+
+  togglePlay: function () { const { queue, currentTrackIndex, isPlaying } = this.data; if (!queue.length) return; if (isPlaying) { this.audio.pause(); this.setData({ showPlayerView: false }); return; } if (!this.audio.src) { const track = queue[currentTrackIndex]; this.loadAndPlayTrack(track, currentTrackIndex); } else { this.audio.play(); } 
+  this.setData({ 
+    showPlayerView: true,
+    swiperDuration: 0,  // 【新增】：进入时动画时长设为 0
+    playerTab: 0        // 【新增】：强制回归歌词页
+   }); },
+
+   closePlayerView: function () { 
+    this.setData({ showPlayerView: false }); 
+    // 【修改】：延迟 410ms（略大于 WXSS 中定义的 0.4s 抽屉下滑过渡动画）
+    // 当抽屉完全滑出屏幕视线后，在后台悄悄把状态拨回歌词页，消除任何穿帮可能
+    setTimeout(() => {
+      this.setData({
+        swiperDuration: 0,
+        playerTab: 0,
+        isHistoryLoaded: false
+      });
+    }, 410);
+  },
+
+  // 打开歌词/播放器抽屉的方法
+// 打开歌词/播放器抽屉的方法
+openPlayerView: function () {
+  // 判断当前有正在播放的歌曲，或播放队列里有歌，才允许打开抽屉
+  if (this.data.currentTrack || (this.data.queue && this.data.queue.length > 0)) {
+    this.setData({ 
+      showPlayerView: true,
+      swiperDuration: 0,      // 【修改】：进入时动画时长设为 0，瞬间切回
+      playerTab: 0,           // 【修改】：强制回归歌词页
+      isHistoryLoaded: false  // 每次打开抽屉重置数据加载状态，保证切过去时能拉取最新数据
+    });
+  } else {
+    wx.showToast({
+      title: '当前没有正在播放的歌曲',
+      icon: 'none'
+    });
+  }
+},
+
+tapQueueItem: function (e) { 
+  const index = e.currentTarget.dataset.index; 
+  const { queue, currentTrackIndex } = this.data; 
+  if (index === currentTrackIndex) return; 
+  const above = queue.slice(0, index); 
+  const clicked = queue[index]; 
+  const below = queue.slice(index + 1); 
+  const newQueue = [clicked, ...below, ...above]; 
+  this.audio.stop(); 
+  this.audio.src = ''; 
+  this.setData({ 
+    queue: newQueue, 
+    currentTrackIndex: 0, 
+    currentTrack: clicked.title + ' - ' + clicked.artist, 
+    showPlayerView: true,
+    swiperDuration: 0,  // 【新增】：进入时动画时长设为 0
+    playerTab: 0        // 【新增】：强制回归歌词页
+  }, () => { 
+    this.loadAndPlayTrack(clicked, 0); 
+  }); 
+},
+
+
   deleteQueueItem: function (e) { const index = e.currentTarget.dataset.index; const { queue, currentTrackIndex } = this.data; const newQueue = queue.filter((_, i) => i !== index); const newIndex = index < currentTrackIndex ? currentTrackIndex - 1 : currentTrackIndex; this.setData({ queue: newQueue, currentTrackIndex: Math.min(newIndex, newQueue.length - 1) }); },
   toggleQueue: function () { const next = !this.data.showQueue; this.setData({ showQueue: next, queueHeight: next ? 120 : 0 }); },
-  goToLogin: function () { wx.navigateTo({ url: '/pages/login/login' }); },
+
+  goToLogin: function () { 
+    if (this.data.isLoggedIn) {
+      wx.navigateTo({ url: '/pages/my/my' });
+    } else {
+      wx.navigateTo({ url: '/pages/login/login' }); 
+    }
+  },
   toggleTheme: function (e) { const targetTheme = e.currentTarget.dataset.theme; if (targetTheme && targetTheme !== this.data.theme) this.setData({ theme: targetTheme }); },
   updateTime: function () { const now = new Date(); const hours = now.getHours().toString().padStart(2, '0'); const minutes = now.getMinutes().toString().padStart(2, '0'); const timeString = hours + minutes; const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; const dayOfWeek = days[now.getDay()]; const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']; const day = now.getDate().toString().padStart(2, '0'); const month = months[now.getMonth()]; const year = now.getFullYear(); const fullDate = `${day} ${month} ${year}`; if (this.data.timeDigits.join('') !== timeString || this.data.fullDate !== fullDate) this.setData({ timeDigits: timeString.split(''), dayOfWeek, fullDate }); },
   startClockAnimation: function () { const render = () => { this.drawPixelClock(); this.animationId = this.canvas.requestAnimationFrame(render); }; render(); },
@@ -644,31 +770,28 @@ Page({
    */
   switchGenre: function(genre) {
     if (!genre || genre === this.data.currentGenre) {
-      return; // 避免重复切换
+      return; 
     }
 
     console.log('切换风格:', this.data.currentGenre, '->', genre);
 
-    // 获取容器元素
     const query = wx.createSelectorQuery();
     query.select('.container').boundingClientRect();
     query.exec((res) => {
       if (!res || !res[0]) return;
 
-      // 移除旧的风格类
-      const oldClass = 'genre-' + this.data.currentGenre;
-      const newClass = 'genre-' + genre;
-
-      // 更新状态
+      // 更新状态时，同步更新 containerClass 字符串
       this.setData({
         currentGenre: genre,
-        genreTransitioning: true
+        genreTransitioning: true,
+        containerClass: `container genre-${genre} genre-transitioning` // 新增
       });
 
-      // 通过动态修改 class 实现（微信小程序需要通过 setData）
-      // 注意：这里需要配合 wxml 中的 class 绑定
       setTimeout(() => {
-        this.setData({ genreTransitioning: false });
+        this.setData({ 
+          genreTransitioning: false,
+          containerClass: `container genre-${genre}` // 新增
+        });
       }, 1500);
     });
   },
@@ -747,4 +870,116 @@ Page({
       }
     });
   },
+
+  // 输入框获取焦点（键盘弹起）
+  onInputFocus: function (e) {
+    const kbHeight = e.detail.height || 0;
+    this.setData({
+      isTyping: true,
+      keyboardHeight: kbHeight
+    }, () => {
+      // 延迟一下，等待页面动画展开后再滚动到底部，保证最新消息可见
+      setTimeout(() => {
+        this.scrollChatToBottom();
+      }, 300);
+    });
+  },
+
+  // 输入框失去焦点（键盘收起）
+  onInputBlur: function () {
+    this.setData({
+      isTyping: false,
+      keyboardHeight: 0
+    });
+  },
+
+  // 键盘高度实时变化（处理用户切换中英文/表情面板导致高度变化的情况）
+  onKeyboardHeightChange: function (e) {
+    if (this.data.isTyping) {
+      this.setData({ keyboardHeight: e.detail.height || 0 });
+      this.scrollChatToBottom();
+    }
+  },
+
+  // --- 新增：播放器抽屉 Tab 切换及滑动逻辑 ---
+  
+// 点击 Tab 切换
+switchPlayerTab: function(e) {
+  const tab = parseInt(e.currentTarget.dataset.tab);
+  this.setData({ 
+    swiperDuration: 300, // 点击标签切换时，恢复 300ms 平滑动画
+    playerTab: tab 
+  });
+},
+
+// Swiper 左右滑动触发
+onPlayerSwiperChange: function(e) {
+  const tab = e.detail.current;
+  this.setData({ 
+    playerTab: tab,
+    swiperDuration: 300 // 【新增】：用户手动滑动时，确保后续有完整的 300ms 滑动体验
+  });
+  
+  // 首次滑动到历史记录时，加载数据
+  if (tab === 1 && !this.data.isHistoryLoaded) {
+    this.fetchPlayHistory();
+  }
+},
+
+  // 获取历史记录 API 请求
+  fetchPlayHistory: function() {
+    const userId = wx.getStorageSync('music_userId');
+    if (!userId) return;
+
+    const apiBase = getApp().globalData.apiBase;
+    wx.request({
+      url: `${apiBase}/play-history?userId=${userId}`,
+      method: 'GET',
+      success: (res) => {
+        if (res.data) {
+          this.setData({ 
+            playHistory: res.data,
+            isHistoryLoaded: true 
+          });
+        }
+      },
+      fail: (err) => {
+        console.error('获取历史记录失败', err);
+      }
+    });
+  },
+
+  // 点击历史记录播放
+  playHistoryItem: function(e) {
+    const item = e.currentTarget.dataset.item;
+    const track = {
+      id: item.songId,
+      title: item.songName,
+      artist: item.artist
+    };
+    
+    // 加入队列并播放 (这里复用现有的 loadAndPlayTrack 逻辑)
+    const { queue } = this.data;
+    const existingIndex = queue.findIndex(q => q.id === track.id);
+    
+    if (existingIndex >= 0) {
+      // 如果队列里已经有这首歌，直接切过去
+      this.audio.stop();
+      this.loadAndPlayTrack(queue[existingIndex], existingIndex);
+    } else {
+      // 将歌曲插入队列第一位并播放
+      const newQueue = [track, ...queue];
+      this.audio.stop();
+      this.setData({ 
+        queue: newQueue,
+        playerTab: 0 // 切回歌词页
+      }, () => {
+        this.loadAndPlayTrack(track, 0);
+      });
+    }
+  },
+
 })
+
+
+

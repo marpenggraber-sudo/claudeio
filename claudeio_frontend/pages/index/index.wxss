@@ -123,10 +123,11 @@
   letter-spacing: 2px;
   font-family: monospace;
   font-weight: bold;
-  background-image:
-    radial-gradient(circle at center, #fff 48%, transparent 48%);
-  background-size: 5px 5px;
+
+  background-image: radial-gradient(circle at center, #fff 48%, transparent 48%);
+  background-size: 4px 4px; 
   background-position: 0 0;
+
   color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
@@ -558,19 +559,27 @@
   margin-left: 10px;
 }
 
+/* 气泡容器 */
 .msg-content {
-  background-color: rgba(30, 35, 50, 0.9); /* 提升消息背景亮度 */
+  background-color: rgba(30, 35, 50, 0.9);
   border: 1px solid rgba(255,255,255,0.1);
-  padding: 10px;
-  border-radius: 6px;
+  /* 核心修复1：使用非对称 Padding。减少顶部内边距，增加底部内边距，手动抵消字体基线下沉导致的视觉偏差 */
+  padding: 6px 12px 10px 12px; 
+  border-radius: 8px; /* 稍微调大圆角，配合文字居中后的视觉更自然 */
   flex: 1;
   min-width: 0;
+  /* 核心修复2：开启 Flex 弹性盒，强行压制内部节点的垂直居中 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  word-break: break-word; /* 确保遇到长英文字符串自动换行，不撑破气泡 */
 }
 
+/* 气泡文字 */
 .msg-text {
-  color: #e8eaed; /* 提升文字亮度 */
-  font-size: 11px;
-  line-height: 1.5;
+  color: #e8eaed; 
+  font-size: 11px; 
+  line-height: 1.5; 
 }
 
 .msg-actions {
@@ -844,8 +853,7 @@ input {
 }
 
 .lyrics-view {
-  flex: 1;
-  height: 0;
+  height: 100%; /* <-- 把 0 改成 100% */
   position: relative;
   z-index: 1;
 }
@@ -854,6 +862,8 @@ input {
   margin-bottom: 20px;
   display: flex;
   flex-direction: column;
+  align-items: center;    /* 确保 Flex 子项水平居中 */
+  text-align: center;     /* 确保多行文本内容居中 */
 }
 
 .lyric-speaker {
@@ -1058,4 +1068,158 @@ input {
 .container.genre-transitioning::after {
   animation: rotateGlow var(--genre-animation-speed) linear infinite,
              genreTransition 1.5s ease-in-out;
+}
+
+/* ==================== AI 等待动画气泡 ==================== */
+.thinking-content {
+  padding: 12px 16px;
+  min-width: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  background-color: #00bcd4; /* 复用你的主色调 */
+  border-radius: 50%;
+  animation: typingPulse 1.4s infinite ease-in-out both;
+}
+
+/* 通过延迟让点产生连续波浪跳动感 */
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typingPulse {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+
+/* ==================== 专注聊天模式动画 ==================== */
+
+/* 整个内容区的底部过渡，让输入框跟随键盘平滑升降 */
+.content {
+  transition: padding-bottom 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 中间区域（时钟、播放器等）容器 */
+.middle-section {
+  transition: all 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+  max-height: 800px; /* 设定一个足够大的基础高度 */
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+}
+
+/* 键盘弹起时：中间区域平滑缩入顶部并变透明 */
+.middle-section.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: -10px; /* 视觉上的微缩收边 */
+  transform: translateY(-30px); /* 整体向上平移退场 */
+  pointer-events: none; /* 彻底阻断收起时的误触 */
+}
+
+/* 修复：原本 chat-section 有 -30px 的负边距，在组件折叠时需要重置，防止文字与 Header 重叠 */
+.content.typing-mode .chat-section {
+  margin-top: 10px;
+  transition: margin-top 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+
+/* ==================== 顶部 Tab 样式重构 ==================== */
+.drawer-header {
+  display: flex;
+  justify-content: space-between; 
+  align-items: center;
+  padding-bottom: 15px;
+  position: relative;
+  z-index: 1;
+}
+
+.player-tabs {
+  display: flex;
+  gap: 16px;
+}
+
+.player-tabs .tab {
+  font-size: 10px;                  /* 保持与原项目 ON AIR / QUEUE 一致的微型字体 */
+  font-family: monospace;           /* 采用原项目统一的等宽计算机字体 */
+  letter-spacing: 1px;              /* 注入原项目特有的字间距拉伸感 */
+  padding: 2px 0;
+  transition: all 0.2s ease;
+  background: transparent;
+  border-bottom: 2px solid transparent; /* 预留底部边框槽位 */
+}
+
+/* ------ 暗黑模式 (Dark Theme) 状态 ------ */
+.page-wrapper.dark .player-tabs .tab {
+  color: #555;                      /* 未激活时暗显，与原播放状态 PAUSED 颜色一致 */
+}
+
+.page-wrapper.dark .player-tabs .tab.active {
+  color: #00bcd4;                   /* 激活时高亮为项目核心青色 */
+  border-bottom-color: #00bcd4;     /* 底部青色高亮条 */
+  font-weight: bold;
+  filter: drop-shadow(0 0 4px rgba(0, 188, 212, 0.8)); /* 融入原项目 Logo 的发光特效 */
+}
+
+/* ------ 明亮模式 (Light Theme) 状态 ------ */
+.page-wrapper.light .player-tabs .tab {
+  color: #888;
+}
+
+.page-wrapper.light .player-tabs .tab.active {
+  color: #00bcd4;
+  border-bottom-color: #00bcd4;
+  font-weight: bold;
+}
+
+
+
+.player-swiper {
+  flex: 1;
+  height: 100%;
+  width: 100%;
+}
+
+.history-view {
+  height: 100%;
+  padding-top: 10px;
+  box-sizing: border-box; /* 防止 padding 撑破容器 */
+}
+
+.empty-hint {
+  text-align: center;
+  color: #888;
+  font-size: 12px;
+  margin-top: 40px;
+}
+
+/* 覆盖 queue-item 原有的 border，适配 drawer 内部 */
+.history-view .queue-item {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  margin-bottom: 5px;
+}
+
+.page-wrapper.dark .history-view .queue-item {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }

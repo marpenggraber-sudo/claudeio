@@ -1,0 +1,153 @@
+.page-wrapper {
+  background-color: #000;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "Inter", sans-serif;
+}
+
+.glow-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  background: #1a1f2e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 动态旋转氛围灯光线 */
+.container::after {
+  content: "";
+  position: absolute;
+  inset: -150px;
+  background: conic-gradient(from 0deg, #ff00ea, #00d4ff, #8a2be2, #00d4ff, #ff00ea);
+  filter: blur(80px);
+  opacity: 0.35;
+  z-index: -1;
+  animation: rotateGlow 12s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotateGlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 复原点阵背景图案 */
+.container::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+  background-size: 12px 12px;
+  background-position: 0 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 15px 20px;
+  box-sizing: border-box;
+}
+
+/* 用户面板布局样式 */
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 60px;
+  margin-bottom: 50px;
+}
+
+.avatar-large {
+  width: 85px;
+  height: 85px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 188, 212, 0.6);
+  box-shadow: 0 0 25px rgba(0, 188, 212, 0.35);
+  margin-bottom: 15px;
+}
+
+.nickname {
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.user-id {
+  color: #555;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+/* 按钮配置区 */
+.action-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+.action-btn {
+  width: 75%;
+  height: 46px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 23px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 2px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.action-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(0.98);
+}
+
+.logout-btn {
+  background: rgba(255, 68, 68, 0.04);
+  border-color: rgba(255, 68, 68, 0.2);
+  color: #ff4444;
+}
+
+.logout-btn:active {
+  background: rgba(255, 68, 68, 0.12);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: #333;
+  letter-spacing: 1px;
+  margin-top: auto;
+  padding-bottom: 15px;
+}

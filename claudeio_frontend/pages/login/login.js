@@ -2,8 +2,8 @@ const app = getApp()
 
 Page({
   data: {
-    // 登录方式: 'manual' | 'qrcode'
-    loginMethod: 'manual',
+    // 登录方式: 
+    loginMethod: 'qrcode',
 
     // 手动登录字段
     account: '',
@@ -40,9 +40,12 @@ Page({
   switchLoginMethod(e) {
     const method = e.currentTarget.dataset.value
     console.log('切换登录方式:', method)
+    
     this.setData({
       loginMethod: method,
-      loading: false
+      loading: false,
+      // 新增逻辑：如果是扫码登录，强制将模式重置为 'login'，保持头部状态和业务逻辑正确
+      mode: method === 'qrcode' ? 'login' : this.data.mode
     })
   },
 
@@ -107,7 +110,7 @@ Page({
           })
 
           setTimeout(() => {
-            wx.navigateTo({ url: '/pages/index/index' })
+            wx.navigateBack({ delta: 1 })
           }, 500)
         } else {
           wx.showModal({
@@ -421,6 +424,7 @@ Page({
         wx.setStorageSync('netease_cookie', cookie)
         wx.setStorageSync('netease_cookie_timestamp', Date.now())
         wx.setStorageSync('user_id', userId)
+        wx.setStorageSync('music_userId', userId)
         wx.setStorageSync('user_nickname', nickname)
 
         // 更新全局状态
@@ -438,9 +442,7 @@ Page({
 
         // 1秒后跳转到首页
         setTimeout(() => {
-          wx.redirectTo({
-            url: '/pages/index/index'
-          })
+          wx.navigateBack({ delta: 1 })
         }, 1000)
 
       } else {

@@ -10,6 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -85,4 +89,23 @@ public class PlayHistoryService {
         log.info("[MusicMemory] 查询最近听过的歌曲ID: userId={}, limit={}, count={}", userId, limit, songIds.size());
         return songIds;
     }
+
+    /**
+     * 获取用户最近的播放历史（按歌曲去重，供前端历史列表展示）
+     */
+    public List<PlayHistory> getUniqueRecentHistory(Long userId) {
+        // 调用 Repository 已有的按时间倒序查询方法
+        List<PlayHistory> allHistory = playHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId);
+
+        // 使用 Set 进行去重，保留最新的一条，限制返回 50 条
+        Set<Long> seenSongIds = new HashSet<>();
+        List<PlayHistory> distinctHistory = allHistory.stream()
+                .filter(history -> seenSongIds.add(history.getSongId())) // add返回true表示之前没加过
+                .limit(50) // 限制列表最大长度为 50，避免前端渲染卡顿
+                .toList();
+
+        log.info("[MusicMemory] 查询去重后的前端历史记录: userId={}, count={}", userId, distinctHistory.size());
+        return distinctHistory;
+    }
+
 }
