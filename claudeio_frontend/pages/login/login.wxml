@@ -51,7 +51,7 @@
           <view class="input-group">
             <text class="label">COOKIE 数据</text>
             <view class="input-wrapper">
-              <textarea class="sys-textarea" placeholder="MUSIC_U=..." placeholder-class="ph-style" bindinput="onCookieInput" value="{{cookie}}" maxlength="-1" auto-height />
+              <textarea class="sys-textarea" placeholder="MUSIC_U=..." placeholder-class="ph-style" bindinput="onCookieInput" value="{{cookie}}" maxlength="-1" />
             </view>
           </view>
 

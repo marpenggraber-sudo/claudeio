@@ -1110,3 +1110,36 @@ input {
     opacity: 1;
   }
 }
+
+
+/* ==================== 专注聊天模式动画 ==================== */
+
+/* 整个内容区的底部过渡，让输入框跟随键盘平滑升降 */
+.content {
+  transition: padding-bottom 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 中间区域（时钟、播放器等）容器 */
+.middle-section {
+  transition: all 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+  max-height: 800px; /* 设定一个足够大的基础高度 */
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+}
+
+/* 键盘弹起时：中间区域平滑缩入顶部并变透明 */
+.middle-section.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: -10px; /* 视觉上的微缩收边 */
+  transform: translateY(-30px); /* 整体向上平移退场 */
+  pointer-events: none; /* 彻底阻断收起时的误触 */
+}
+
+/* 修复：原本 chat-section 有 -30px 的负边距，在组件折叠时需要重置，防止文字与 Header 重叠 */
+.content.typing-mode .chat-section {
+  margin-top: 10px;
+  transition: margin-top 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+}
+

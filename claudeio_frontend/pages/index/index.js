@@ -30,7 +30,12 @@ Page({
     currentGenre: 'default',  // 当前风格
     genreCache: {},           // 本地缓存 {songId: genre}
     genreTransitioning: false ,// 切换动画状态
-    containerClass: 'container genre-default' 
+    containerClass: 'container genre-default' ,
+    isTyping: false,      // 控制专注模式的开关
+    keyboardHeight: 0,    // 实时记录键盘高度
+    playerTab: 0, // 0: 歌词, 1: 历史记录
+    playHistory: [], // 历史记录数据
+    isHistoryLoaded: false, // 避免每次滑动都重复请求
   },
 
   canvas: null,
@@ -807,4 +812,39 @@ onShow: function () {
       }
     });
   },
+
+  // 输入框获取焦点（键盘弹起）
+  onInputFocus: function (e) {
+    const kbHeight = e.detail.height || 0;
+    this.setData({
+      isTyping: true,
+      keyboardHeight: kbHeight
+    }, () => {
+      // 延迟一下，等待页面动画展开后再滚动到底部，保证最新消息可见
+      setTimeout(() => {
+        this.scrollChatToBottom();
+      }, 300);
+    });
+  },
+
+  // 输入框失去焦点（键盘收起）
+  onInputBlur: function () {
+    this.setData({
+      isTyping: false,
+      keyboardHeight: 0
+    });
+  },
+
+  // 键盘高度实时变化（处理用户切换中英文/表情面板导致高度变化的情况）
+  onKeyboardHeightChange: function (e) {
+    if (this.data.isTyping) {
+      this.setData({ keyboardHeight: e.detail.height || 0 });
+      this.scrollChatToBottom();
+    }
+  },
+
+
 })
+
+
+

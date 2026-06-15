@@ -1,8 +1,8 @@
 <view class="page-wrapper {{theme}}">
 <view class="glow-wrapper">
   <view class="{{containerClass}}">
-  <view class="content">
-    <!-- Header -->
+  <view class="content {{isTyping ? 'typing-mode' : ''}}" style="padding-bottom: {{keyboardHeight ? keyboardHeight + 15 : 15}}px;">
+    <!-- 顶部 -->
     <view class="header">
       <view class="logo-section">
         <image class="avatar" src="https://img.yzcdn.cn/vant/cat.jpeg"></image>
@@ -19,98 +19,100 @@
       </view>
     </view>
 
-    <!-- Clock Section -->
-    <view class="clock-section">
-      <canvas id="clockCanvas" type="2d" class="clock-canvas"></canvas>
-      <view class="date">{{dayOfWeek}}</view>
-      <view class="full-date">{{fullDate}}</view>
-      <view class="on-air">
-        <view class="dot green-dot"></view>
-        <text>ON AIR</text>
-      </view>
-    </view>
+    <!-- 时钟区域 -->
+    <view class="middle-section {{isTyping ? 'collapsed' : ''}}">
 
-    <view class="divider"></view>
-
-    <!-- Player Section -->
-    <view class="player-section">
-      <view class="track-info-row">
-        <view class="equalizer {{isPlaying ? 'playing' : ''}}">
-          <view class="bar bar1"></view>
-          <view class="bar bar2"></view>
-          <view class="bar bar3"></view>
-          <view class="bar bar4"></view>
+      <view class="clock-section">
+        <canvas id="clockCanvas" type="2d" class="clock-canvas"></canvas>
+        <view class="date">{{dayOfWeek}}</view>
+        <view class="full-date">{{fullDate}}</view>
+        <view class="on-air">
+          <view class="dot green-dot"></view>
+          <text>ON AIR</text>
         </view>
+      </view>
 
-        <view class="track-details" bindtap="openPlayerView">
-          <view class="marquee-wrap">
-            <text class="track-name marquee-text">{{currentTrack}}</text>
+      <view class="divider"></view>
+
+      <!-- Player Section -->
+      <view class="player-section">
+        <view class="track-info-row">
+          <view class="equalizer {{isPlaying ? 'playing' : ''}}">
+            <view class="bar bar1"></view>
+            <view class="bar bar2"></view>
+            <view class="bar bar3"></view>
+            <view class="bar bar4"></view>
           </view>
-          <text class="playing-status">{{isPlaying ? 'PLAYING' : 'PAUSED'}}</text>
-        </view>
 
-        <view class="controls">
-          <view class="icon-btn" bindtap="playPrev">|◁</view>
-          <view class="icon-btn" bindtap="togglePlay">{{isPlaying ? '||' : '▷'}}</view>
-          <view class="icon-btn" bindtap="playNext">▷|</view>
-          <view class="volume-slider">
-            <text class="vol-text">VOL</text>
-            <slider class="vol-slider" min="0" max="100" value="{{volume}}" block-size="10" activeColor="#00bcd4" backgroundColor="#333" bindchange="onVolumeChange" bindchanging="onVolumeChange" />
+          <view class="track-details" bindtap="openPlayerView">
+            <view class="marquee-wrap">
+              <text class="track-name marquee-text">{{currentTrack}}</text>
+            </view>
+            <text class="playing-status">{{isPlaying ? 'PLAYING' : 'PAUSED'}}</text>
+          </view>
+
+          <view class="controls">
+            <view class="icon-btn" bindtap="playPrev">|◁</view>
+            <view class="icon-btn" bindtap="togglePlay">{{isPlaying ? '||' : '▷'}}</view>
+            <view class="icon-btn" bindtap="playNext">▷|</view>
+            <view class="volume-slider">
+              <text class="vol-text">VOL</text>
+              <slider class="vol-slider" min="0" max="100" value="{{volume}}" block-size="10" activeColor="#00bcd4" backgroundColor="#333" bindchange="onVolumeChange" bindchanging="onVolumeChange" />
+            </view>
           </view>
         </view>
-      </view>
-      <view class="progress-row">
-        <text class="time-current">{{currentTimeStr}}</text>
-        <slider class="progress-slider" min="0" max="{{duration}}" value="{{currentTime}}" block-size="12" activeColor="#00bcd4" backgroundColor="#222" bindchange="onSeek" bindchanging="onSeeking" />
-        <text class="time-total">{{durationStr}}</text>
-      </view>
-    </view>
-
-    <view class="divider"></view>
-
-    <!-- Queue Info -->
-    <view class="queue-section">
-      <text>QUEUE</text>
-      <view style="display:flex;align-items:center;">
-        <text>{{queue.length}} TRACKS</text>
-        <text class="queue-toggle-btn" bindtap="toggleQueue">{{showQueue ? '▲' : '▼'}}</text>
-      </view>
-    </view>
-
-    <!-- Queue List -->
-    <scroll-view class="queue-list" scroll-y style="height:{{queueHeight}}px;overflow:hidden;transition:height 0.4s ease;">
-      <view
-        class="queue-item {{index === currentTrackIndex ? 'active' : ''}}"
-        wx:for="{{queue}}"
-        wx:key="id"
-        data-index="{{index}}"
-        bindtap="tapQueueItem"
-      >
-        <view class="queue-left">
-          <text class="queue-index">{{index === currentTrackIndex ? '▶' : index + 1}}</text>
-          <text class="queue-title">{{item.title}}</text>
+        <view class="progress-row">
+          <text class="time-current">{{currentTimeStr}}</text>
+          <slider class="progress-slider" min="0" max="{{duration}}" value="{{currentTime}}" block-size="12" activeColor="#00bcd4" backgroundColor="#222" bindchange="onSeek" bindchanging="onSeeking" />
+          <text class="time-total">{{durationStr}}</text>
         </view>
-        <text class="queue-artist">{{item.artist}}</text>
-        <text class="queue-delete-btn" catchtap="deleteQueueItem" data-index="{{index}}">✕</text>
       </view>
-    </scroll-view>
 
-    <view class="divider"></view>
+      <view class="divider"></view>
 
-    <!-- Live Status -->
-    <view class="live-status">
-      <view class="live-left">
-        <view class="dot green-dot"></view>
-        <text>Melodio</text>
+      <!-- Queue Info -->
+      <view class="queue-section">
+        <text>QUEUE</text>
+        <view style="display:flex;align-items:center;">
+          <text>{{queue.length}} TRACKS</text>
+          <text class="queue-toggle-btn" bindtap="toggleQueue">{{showQueue ? '▲' : '▼'}}</text>
+        </view>
       </view>
-      <text class="live-right">LIVE</text>
-    </view>
 
-    <view class="connection-status">
-      <text class="dashed-line">---</text>
-      <text class="dashed-line">---</text>
-    </view>
+      <!-- Queue List -->
+      <scroll-view class="queue-list" scroll-y style="height:{{queueHeight}}px;overflow:hidden;transition:height 0.4s ease;">
+        <view
+          class="queue-item {{index === currentTrackIndex ? 'active' : ''}}"
+          wx:for="{{queue}}"
+          wx:key="id"
+          data-index="{{index}}"
+          bindtap="tapQueueItem"
+        >
+          <view class="queue-left">
+            <text class="queue-index">{{index === currentTrackIndex ? '▶' : index + 1}}</text>
+            <text class="queue-title">{{item.title}}</text>
+          </view>
+          <text class="queue-artist">{{item.artist}}</text>
+          <text class="queue-delete-btn" catchtap="deleteQueueItem" data-index="{{index}}">✕</text>
+        </view>
+      </scroll-view>
 
+      <view class="divider"></view>
+
+      <!-- Live Status -->
+      <view class="live-status">
+        <view class="live-left">
+          <view class="dot green-dot"></view>
+          <text>Melodio</text>
+        </view>
+        <text class="live-right">LIVE</text>
+      </view>
+
+      <view class="connection-status">
+        <text class="dashed-line">---</text>
+        <text class="dashed-line">---</text>
+      </view>
+    </view>
     <!-- Chat Section -->
     <scroll-view class="chat-section" scroll-y scroll-into-view="{{chatScrollIntoView}}">
       <view wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}" class="message-group {{item.role === 'user' ? 'user-message' : 'agent-message'}}">
@@ -146,7 +148,18 @@
     <!-- Input Section -->
     <view class="input-section">
       <view class="input-box">
-        <input placeholder="Say something to the DJ..." placeholder-class="placeholder-style" value="{{chatInput}}" bindinput="onChatInput" bindconfirm="sendChat" confirm-type="send" />
+        <input 
+          placeholder="Say something to the DJ..." 
+          placeholder-class="placeholder-style" 
+          value="{{chatInput}}" 
+          bindinput="onChatInput" 
+          bindconfirm="sendChat" 
+          confirm-type="send" 
+          adjust-position="{{false}}"
+          bindfocus="onInputFocus"
+          bindblur="onInputBlur"
+          bindkeyboardheightchange="onKeyboardHeightChange"
+        />
       </view>
       <view class="icon-btn send-btn" bindtap="sendChat">↑</view>
     </view>
@@ -179,6 +192,8 @@
         </view>
       </scroll-view>
     </view>
+
+    
   </view>
 </view>
 </view>
